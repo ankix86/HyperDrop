@@ -1,0 +1,16 @@
+from pathlib import Path
+
+APP_NAME = "HyperDrop"
+CONFIG_FILE_NAME = "config.json"
+DEFAULT_BIND_HOST = "0.0.0.0"
+DEFAULT_PORT = 54545
+DEFAULT_MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024
+DEFAULT_MAX_BATCH_SIZE = 8 * 1024 * 1024 * 1024
+CHUNK_SIZE = 256 * 1024
+PROTOCOL_VERSION = 1
+DISCOVERY_PORT = 54546
+DISCOVERY_MAGIC = "hyperdrop_discovery_v1"
+
+APP_DIR = Path.home() / ".lan_transfer_mvp"
+DEFAULT_RECEIVE_DIR = APP_DIR / "received"
+DEFAULT_LOG_FILE = APP_DIR / "app.log"

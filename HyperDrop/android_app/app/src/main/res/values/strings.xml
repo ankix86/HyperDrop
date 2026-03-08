@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">HyperDrop</string>
+    <string name="notification_channel">HyperDrop Transfers</string>
+</resources>

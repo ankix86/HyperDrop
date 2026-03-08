@@ -1,0 +1,53 @@
+# ============================================================
+# HyperDrop .gitignore
+# ============================================================
+
+# ── Build output (Android + PC — all build folders) ─────────
+**/build/
+**/dist/
+
+# ── Android specific ─────────────────────────────────────────
+android_app/.gradle/
+android_app/local.properties
+android_app/**/*.class
+
+# ── PC App (Python / PyInstaller) ───────────────────────────
+pc_app/**/__pycache__/
+pc_app/**/*.py[cod]
+pc_app/**/*.pyo
+pc_app/*.spec
+pc_app/*.log
+
+# Crash / JVM error logs (contain local machine paths)
+android_app/hs_err_pid*.log
+android_app/replay_pid*.log
+pc_app/hs_err_pid*.log
+pc_app/replay_pid*.log
+*.log
+
+# ── Python virtualenvs & packaging ──────────────────────────
+.venv/
+venv/
+env/
+*.egg-info/
+
+
+# ── IDE / Editor ─────────────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+
+# ── OS generated files ───────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ── Secrets / local config (never commit these!) ─────────────
+*.keystore
+*.jks
+google-services.json
