@@ -8,7 +8,7 @@ HyperDrop is a local-network file transfer app for Android and desktop.
 
 It moves files directly between devices on the same LAN without a cloud relay, an account system, or an internet upload path.
 
-[GitHub Repository](https://github.com/ankix86/HyperDrop) • [Collaboration Guide](COLLABORATION.md) • [Contributing](CONTRIBUTING.md)
+[GitHub Repository](https://github.com/ankix86/HyperDrop) • [Collaboration Guide](CONTRIBUTING.md)
 
 - [About](#about)
 - [Screenshots](#screenshots)

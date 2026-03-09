@@ -39,7 +39,7 @@ MyAPP/
 ├── pc_app/        # Python + PySide6/QML (Windows/Linux)
 ├── Assest/        # Shared icons and sound effects
 ├── README.md
-└── COLLABORATION.md
+└── CONTRIBUTING.md
 ```
 
 Each side of the app mirrors the same protocol — changes to the protocol or crypto layer must be reflected in **both** `android_app/` and `pc_app/`.
