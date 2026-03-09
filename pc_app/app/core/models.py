@@ -22,6 +22,9 @@ class AppConfig:
     auto_start_server: bool = True
     max_file_size: int = 0
     max_batch_size: int = 0
+    alias: str = ""
+    quick_save_mode: int = 0
+    favorites: list[str] = field(default_factory=list)
     trusted_devices: dict[str, DeviceRecord] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, Any]:
@@ -42,6 +45,9 @@ class AppConfig:
             auto_start_server=bool(data.get("auto_start_server", True)),
             max_file_size=int(data.get("max_file_size", 0)),
             max_batch_size=int(data.get("max_batch_size", 0)),
+            alias=data.get("alias", ""),
+            quick_save_mode=int(data.get("quick_save_mode", 0)),
+            favorites=list(data.get("favorites", [])),
             trusted_devices=trusted,
         )
 

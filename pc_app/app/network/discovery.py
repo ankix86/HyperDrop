@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
+import re
 import socket
+import subprocess
+import sys
 from dataclasses import dataclass
 from time import time
 from typing import Callable
@@ -20,6 +24,71 @@ class DiscoveredDevice:
     last_seen: float
 
 
+def _broadcast_addresses() -> list[str]:
+    targets: dict[str, str] = {"255.255.255.255": "255.255.255.255"}
+
+    def add(value: str) -> None:
+        text = value.strip()
+        if not text:
+            return
+        try:
+            ip = ipaddress.IPv4Address(text)
+        except Exception:
+            return
+        if ip.is_loopback:
+            return
+        targets.setdefault(str(ip), str(ip))
+
+    try:
+        if sys.platform.startswith("win"):
+            output = subprocess.check_output(
+                ["ipconfig"],
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+            )
+            for block in re.split(r"(?:\r?\n){2,}", output):
+                ip_match = re.search(r"IPv4[^:]*:\s*([0-9.]+)", block)
+                mask_match = re.search(r"Subnet Mask[^:]*:\s*([0-9.]+)", block)
+                if not ip_match or not mask_match:
+                    continue
+                network = ipaddress.IPv4Network(
+                    f"{ip_match.group(1)}/{mask_match.group(1)}",
+                    strict=False,
+                )
+                add(str(network.broadcast_address))
+        else:
+            output = subprocess.check_output(
+                ["ip", "-4", "addr", "show"],
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+            )
+            for ip_text, prefix_text, brd_text in re.findall(
+                r"inet\s+([0-9.]+)/([0-9]+)(?:\s+brd\s+([0-9.]+))?",
+                output,
+            ):
+                if brd_text:
+                    add(brd_text)
+                else:
+                    network = ipaddress.IPv4Network(f"{ip_text}/{prefix_text}", strict=False)
+                    add(str(network.broadcast_address))
+    except Exception:
+        pass
+
+    try:
+        fallback = socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET, socket.SOCK_DGRAM)
+        for info in fallback:
+            address = info[4][0]
+            octets = address.split(".")
+            if len(octets) == 4:
+                add(".".join(octets[:3] + ["255"]))
+    except Exception:
+        pass
+
+    return list(targets.values())
+
+
 class DiscoveryService:
     def __init__(
         self,
@@ -33,6 +102,7 @@ class DiscoveryService:
         self.device_name = device_name
         self.tcp_port = tcp_port
         self.platform = platform
+        self.accepting_connections = True
         self._on_devices = on_devices
         self._devices: dict[str, DiscoveredDevice] = {}
         self._transport: asyncio.DatagramTransport | None = None
@@ -68,14 +138,24 @@ class DiscoveryService:
     async def _probe_loop(self) -> None:
         while True:
             self.send_probe()
+            if self.accepting_connections:
+                self.send_announce()
             self._prune_stale()
-            await asyncio.sleep(3.0)
+            await asyncio.sleep(2.4)
 
     def send_probe(self) -> None:
         if self._transport is None:
             return
         packet = self._build_packet("discover_request")
-        self._transport.sendto(packet, ("255.255.255.255", DISCOVERY_PORT))
+        for target in _broadcast_addresses():
+            self._transport.sendto(packet, (target, DISCOVERY_PORT))
+
+    def send_announce(self) -> None:
+        if self._transport is None:
+            return
+        packet = self._build_packet("announce")
+        for target in _broadcast_addresses():
+            self._transport.sendto(packet, (target, DISCOVERY_PORT))
 
     def handle_datagram(self, data: bytes, addr: tuple[str, int]) -> None:
         try:
@@ -91,9 +171,15 @@ class DiscoveryService:
             return
 
         if msg_type == "discover_request":
-            self._send_response(addr)
+            if self.accepting_connections:
+                self._send_response(addr)
             return
-        if msg_type != "discover_response":
+        if msg_type == "bye":
+            if sender_id in self._devices:
+                del self._devices[sender_id]
+                self._on_devices(dict(self._devices))
+            return
+        if msg_type not in {"discover_response", "announce"}:
             return
 
         device = DiscoveredDevice(
@@ -113,6 +199,13 @@ class DiscoveryService:
         if self._transport is None:
             return
         self._transport.sendto(self._build_packet("discover_response"), addr)
+
+    async def send_bye(self) -> None:
+        if self._transport is None:
+            return
+        packet = self._build_packet("bye")
+        for target in _broadcast_addresses():
+            self._transport.sendto(packet, (target, DISCOVERY_PORT))
 
     def _build_packet(self, msg_type: str) -> bytes:
         return json.dumps(

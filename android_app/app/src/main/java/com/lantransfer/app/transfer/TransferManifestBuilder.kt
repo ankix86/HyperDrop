@@ -13,37 +13,37 @@ class TransferManifestBuilder(private val context: Context) {
         val sourceByRelativePath: Map<String, Uri>
     )
 
-    fun buildFromUris(uris: List<Uri>): BuiltManifest {
+    suspend fun buildFromUris(uris: List<Uri>): BuiltManifest = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val entries = mutableListOf<ManifestEntry>()
         val sourceMap = mutableMapOf<String, Uri>()
         uris.forEach { uri ->
             val meta = query(uri)
             val rel = meta.name
-            entries += ManifestEntry(rel, meta.name, meta.mime ?: "application/octet-stream", meta.size, System.currentTimeMillis(), sha256(uri), false)
+            entries += ManifestEntry(rel, meta.name, meta.mime ?: "application/octet-stream", meta.size, System.currentTimeMillis(), sha256Suspend(uri), false)
             sourceMap[rel] = uri
         }
-        return BuiltManifest(entries, sourceMap)
+        BuiltManifest(entries, sourceMap)
     }
 
-    fun buildFromTreeUri(treeUri: Uri): BuiltManifest {
+    suspend fun buildFromTreeUri(treeUri: Uri): BuiltManifest = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: error("Invalid tree URI")
         val entries = mutableListOf<ManifestEntry>()
         val sourceMap = mutableMapOf<String, Uri>()
 
-        fun walk(node: DocumentFile, base: String) {
+        suspend fun walk(node: DocumentFile, base: String) {
             val name = node.name ?: "unnamed"
             val rel = if (base.isBlank()) name else "$base/$name"
             if (node.isDirectory) {
                 entries += ManifestEntry(rel, name, "inode/directory", 0, node.lastModified(), "", true)
                 node.listFiles().forEach { walk(it, rel) }
             } else if (node.isFile) {
-                entries += ManifestEntry(rel, name, node.type ?: "application/octet-stream", node.length(), node.lastModified(), sha256(node.uri), false)
+                entries += ManifestEntry(rel, name, node.type ?: "application/octet-stream", node.length(), node.lastModified(), sha256Suspend(node.uri), false)
                 sourceMap[rel] = node.uri
             }
         }
 
         root.listFiles().forEach { walk(it, "") }
-        return BuiltManifest(entries, sourceMap)
+        BuiltManifest(entries, sourceMap)
     }
 
     private data class Meta(val name: String, val size: Long, val mime: String?)
@@ -60,7 +60,7 @@ class TransferManifestBuilder(private val context: Context) {
         return Meta("file.bin", 0L, resolver.getType(uri))
     }
 
-    private fun sha256(uri: Uri): String {
+    private suspend fun sha256Suspend(uri: Uri): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val md = MessageDigest.getInstance("SHA-256")
         context.contentResolver.openInputStream(uri)?.use { input ->
             val buf = ByteArray(1024 * 1024)
@@ -70,6 +70,6 @@ class TransferManifestBuilder(private val context: Context) {
                 md.update(buf, 0, n)
             }
         }
-        return md.digest().joinToString("") { "%02x".format(it) }
+        md.digest().joinToString("") { "%02x".format(it) }
     }
 }

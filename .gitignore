@@ -8,11 +8,13 @@
 
 # ── Android specific ─────────────────────────────────────────
 android_app/.gradle/
+android_app/.kotlin/
 android_app/local.properties
 android_app/**/*.class
 
 # ── PC App (Python / PyInstaller) ───────────────────────────
 pc_app/**/__pycache__/
+**/__pycache__/
 pc_app/**/*.py[cod]
 pc_app/**/*.pyo
 pc_app/*.spec

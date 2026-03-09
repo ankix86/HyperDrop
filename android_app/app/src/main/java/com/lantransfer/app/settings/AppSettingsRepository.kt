@@ -63,6 +63,13 @@ class AppSettingsRepository(private val context: Context) {
         }
     }
 
+    suspend fun updateDeviceName(name: String) {
+        val cleaned = name.trim().take(42)
+        context.dataStore.edit {
+            it[Keys.DEVICE_NAME] = cleaned.ifBlank { android.os.Build.MODEL }
+        }
+    }
+
     suspend fun setAutoScreenshot(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_SS] = enabled }
     }

@@ -16,42 +16,50 @@ import com.lantransfer.app.ui.MainScreen
 
 class MainActivity : ComponentActivity() {
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
+    private var pendingSharedUris: List<Uri> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestRuntimePermissions()
-        handleIncomingShare(intent)
+        pendingSharedUris = extractIncomingShare(intent)
         setContent {
             HyperDropTheme {
                 MainScreen()
             }
         }
+        window.decorView.post { flushPendingShare() }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleIncomingShare(intent)
+        pendingSharedUris = extractIncomingShare(intent)
+        window.decorView.post { flushPendingShare() }
     }
 
-    private fun handleIncomingShare(intent: Intent?) {
-        if (intent == null) return
+    private fun flushPendingShare() {
+        if (pendingSharedUris.isEmpty()) return
+        IncomingShareBus.publish(pendingSharedUris)
+        pendingSharedUris = emptyList()
+    }
 
-        val uris = when (intent.action) {
-            Intent.ACTION_SEND -> {
-                listOfNotNull(intent.getUriExtra(Intent.EXTRA_STREAM))
-            }
+    private fun extractIncomingShare(intent: Intent?): List<Uri> {
+        if (intent == null) return emptyList()
 
-            Intent.ACTION_SEND_MULTIPLE -> {
-                intent.getUriListExtra(Intent.EXTRA_STREAM)
-            }
-
+        val fromExtra = when (intent.action) {
+            Intent.ACTION_SEND -> listOfNotNull(intent.getUriExtra(Intent.EXTRA_STREAM))
+            Intent.ACTION_SEND_MULTIPLE -> intent.getUriListExtra(Intent.EXTRA_STREAM)
             else -> emptyList()
         }
-
-        if (uris.isNotEmpty()) {
-            IncomingShareBus.publish(uris)
+        val fromData = listOfNotNull(intent.data)
+        val fromClip = buildList {
+            val clip = intent.clipData ?: return@buildList
+            for (i in 0 until clip.itemCount) {
+                val uri = clip.getItemAt(i)?.uri
+                if (uri != null) add(uri)
+            }
         }
+        return (fromExtra + fromData + fromClip).distinctBy { it.toString() }
     }
 
     @Suppress("DEPRECATION")

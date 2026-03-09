@@ -5,9 +5,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.lantransfer.app.MainActivity
 import com.lantransfer.app.R
 import com.lantransfer.app.core.AppConstants
 import com.lantransfer.app.network.DiscoveryResponder
@@ -30,12 +32,14 @@ class TransferForegroundService : Service() {
     private lateinit var transferEngine: TransferEngine
     private var settingsJob: Job? = null
     private var currentSettings: AppSettings? = null
+    private var multicastLock: WifiManager.MulticastLock? = null
     private val discoveryResponder = DiscoveryResponder(
         scope = scope,
         deviceIdProvider = { currentSettings?.deviceId.orEmpty() },
         deviceNameProvider = { currentSettings?.deviceName ?: android.os.Build.MODEL },
         tcpPortProvider = { currentSettings?.pcPort ?: AppConstants.DEFAULT_PORT },
-        platform = "android"
+        platform = "android",
+        onPeerOffline = { peerId -> TransferServiceBus.emit("peer_offline:$peerId") }
     )
 
     @Volatile
@@ -45,6 +49,12 @@ class TransferForegroundService : Service() {
         super.onCreate()
         settingsRepo = AppSettingsRepository(this)
         transferEngine = TransferEngine(this)
+        multicastLock = runCatching {
+            val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager
+            wifiManager?.createMulticastLock("hyperdrop-discovery-lock")?.apply {
+                setReferenceCounted(false)
+            }
+        }.getOrNull()
         createNotificationChannel()
     }
 
@@ -59,6 +69,7 @@ class TransferForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        transferEngine.cancelTransfer()
         stopEngine()
         super.onDestroy()
     }
@@ -66,12 +77,16 @@ class TransferForegroundService : Service() {
     private fun startEngine() {
         if (running) return
         running = true
-        startForeground(AppConstants.NOTIFICATION_ID, buildNotification("Transfer service running"))
+        runCatching { multicastLock?.acquire() }
+        TransferServiceBus.setServiceRunning(true)
+        startForeground(AppConstants.NOTIFICATION_ID, buildNotification("Receiver ready"))
 
         scope.launch {
             val initialSettings = settingsRepo.settingsFlow.first()
             settingsRepo.persistGeneratedDeviceIdIfNeeded(initialSettings)
-            currentSettings = initialSettings
+            val finalSettings = settingsRepo.settingsFlow.first()
+            currentSettings = finalSettings
+            discoveryResponder.acceptingConnections = true
             discoveryResponder.start()
             settingsJob?.cancel()
             settingsJob = scope.launch {
@@ -80,20 +95,73 @@ class TransferForegroundService : Service() {
                 }
             }
 
+            // Listen for transfer events and update notification
+            scope.launch {
+                var isTransferring = false
+                TransferServiceBus.events.collectLatest { event ->
+                    when {
+                        event.startsWith("PROGRESS:") -> {
+                            if (!isTransferring) {
+                                isTransferring = true
+                                updateNotification("Transfer service running")
+                            }
+                        }
+                        event.contains("transfer complete") || event.contains("sent ") -> {
+                            isTransferring = false
+                            updateNotification("Receiver ready")
+                        }
+                    }
+                }
+            }
+
             retryWithBackoff {
-                transferEngine.runServer(initialSettings, { TransferServiceBus.emit(it) }) { running }
+                transferEngine.runServer(
+                    settingsProvider = { currentSettings ?: initialSettings },
+                    onEvent = { TransferServiceBus.emit(it) },
+                    isRunning = { running },
+                    incomingTransferHandler = { request ->
+                        updateNotification("Incoming transfer request")
+                        openIncomingTransferUi()
+                        val decision = TransferServiceBus.requestIncomingTransfer(request)
+                        updateNotification(if (decision.accepted) "Transfer service running" else "Receiver ready")
+                        decision
+                    }
+                )
             }
         }
     }
 
+    private fun updateNotification(text: String) {
+        val manager = getSystemService(NotificationManager::class.java)
+        val notification = buildNotification(text)
+        manager.notify(AppConstants.NOTIFICATION_ID, notification)
+    }
+
     private fun stopEngine() {
         running = false
+        TransferServiceBus.setServiceRunning(false)
+        TransferServiceBus.declinePendingIncoming("Receiver stopped")
         settingsJob?.cancel()
         settingsJob = null
         discoveryResponder.stop()
+        runCatching {
+            if (multicastLock?.isHeld == true) {
+                multicastLock?.release()
+            }
+        }
         currentSettings = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private fun openIncomingTransferUi() {
+        runCatching {
+            startActivity(
+                Intent(this, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+            )
+        }
     }
 
     private suspend fun retryWithBackoff(block: suspend () -> Unit) {

@@ -34,15 +34,13 @@ class OutgoingTransferQueue(
                     known.remove(task.fingerprint)
                 } catch (t: Throwable) {
                     val reason = "${t::class.java.simpleName}: ${t.message ?: "no details"}"
-                    if (attempt < 5) {
-                        val delaySec = (1 shl attempt).coerceAtMost(30)
-                        onEvent("retrying in ${delaySec}s: $reason")
-                        delay(delaySec * 1000L)
-                        queue.send(task to (attempt + 1))
+                    onEvent("PROGRESS:error:0:0")
+                    if (t is java.net.ConnectException) {
+                        onEvent("The receiver is not accepting files at the moment. Please try again later.")
                     } else {
-                        onEvent("transfer failed: $reason")
-                        known.remove(task.fingerprint)
+                        onEvent("transfer failed/cancelled: $reason. Clearing remaining queue.")
                     }
+                    clear()
                 }
             }
         }
@@ -54,5 +52,13 @@ class OutgoingTransferQueue(
             return
         }
         scope.launch { queue.send(task to 0) }
+    }
+
+    fun clear() {
+        while (queue.tryReceive().isSuccess) {
+            // Drain the channel
+        }
+        known.clear()
+        onEvent("Queue cleared.")
     }
 }

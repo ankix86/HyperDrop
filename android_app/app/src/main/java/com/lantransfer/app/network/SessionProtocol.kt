@@ -6,6 +6,7 @@ import com.lantransfer.app.crypto.CryptoEngine
 import com.lantransfer.app.data.ProtocolMessage
 import com.lantransfer.app.util.asObject
 import com.lantransfer.app.util.str
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -16,15 +17,14 @@ class SessionProtocol(private val crypto: CryptoEngine) {
         val peerDeviceId: String
     )
 
-    fun msg(type: String, payload: Map<String, JsonPrimitive>): ProtocolMessage {
+    fun msg(type: String, payload: Map<String, JsonElement>): ProtocolMessage {
         return ProtocolMessage(AppConstants.PROTOCOL_VERSION, type, JsonObject(payload))
     }
 
     suspend fun handshakeAsClient(
         transport: FramedTransport,
         localDeviceId: String,
-        localName: String,
-        pairingCode: String
+        localName: String
     ): SecureSession {
         try {
             transport.send(msg("hello", mapOf("device_id" to JsonPrimitive(localDeviceId), "device_name" to JsonPrimitive(localName))))
@@ -34,15 +34,17 @@ class SessionProtocol(private val crypto: CryptoEngine) {
             if (pair.type == "pair_request") {
                 val po = pair.payload.asObject()
                 if (po.containsKey("device_id")) peerDeviceId = po.str("device_id")
-                transport.send(msg("pair_confirm", mapOf("pairing_code" to JsonPrimitive(pairingCode))))
+                // No pairing code — just confirm
+                transport.send(msg("pair_confirm", mapOf()))
                 val pairResult = transport.receive()
                 require(pairResult.type == "pair_confirm") { "expected pair_confirm but got ${pairResult.type}" }
                 val pairObj = pairResult.payload.asObject()
                 if (pairObj.containsKey("device_id")) peerDeviceId = pairObj.str("device_id")
-            } else {
-                require(pair.type == "pair_confirm") { "unexpected pairing message ${pair.type}" }
+            } else if (pair.type == "pair_confirm") {
                 val pairObj = pair.payload.asObject()
                 if (pairObj.containsKey("device_id")) peerDeviceId = pairObj.str("device_id")
+            } else {
+                require(false) { "unexpected pairing message ${pair.type}" }
             }
 
             val serverKx = transport.receive()

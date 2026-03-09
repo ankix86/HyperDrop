@@ -492,6 +492,7 @@ class MainWindow(tk.Tk):
             self.stop_server()
             if self.discovery is not None:
                 self.runtime.submit(self.discovery.stop())
+            # Cancel any ongoing transfer immediately
             self.runtime.submit(self.transfer_queue.stop())
         except Exception:
             pass

@@ -39,3 +39,7 @@ class TransfersView(ttk.Frame):
         self.count_var.set(f"{len(children)} events")
         if children:
             self.tree.see(children[-1])
+
+    def add_cancel_button(self, cancel_callback):
+        btn = ttk.Button(self, text="Cancel Transfer", command=cancel_callback, style="Danger.TButton")
+        btn.pack(fill="x", pady=8)

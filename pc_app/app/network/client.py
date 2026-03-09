@@ -16,6 +16,24 @@ from app.transfer.sender import TransferSender
 logger = logging.getLogger(__name__)
 
 
+class TransferDeclinedError(RuntimeError):
+    """Raised when the remote receiver explicitly declines the transfer."""
+
+
+def _filter_transfer_payload(manifest, source_map: dict, accepted_paths: set[str]) -> tuple:
+    if not accepted_paths:
+        return manifest, source_map
+
+    filtered_entries = [entry for entry in manifest.entries if entry.relative_path in accepted_paths]
+    filtered_source_map = {
+        path: source
+        for path, source in source_map.items()
+        if path in accepted_paths
+    }
+    manifest.entries = filtered_entries
+    return manifest, filtered_source_map
+
+
 class LanClient:
     def __init__(
         self,
@@ -30,10 +48,23 @@ class LanClient:
         self.device_name = device_name
         self._pairing_code_provider = pairing_code_provider
         self._status_callback = status_callback
+        self._cancelled = False
+        self._active_session: Session | None = None
+
+    def cancel_transfer(self) -> None:
+        self._emit_status("Client Cancellation requested")
+        self._cancelled = True
+        if self._active_session:
+            try:
+                self._active_session.transport.writer.close()
+            except Exception:
+                pass
 
     async def send_task(self, task: TransferTask) -> None:
+        self._cancelled = False
         reader, writer = await asyncio.open_connection(task.target_ip, task.target_port)
         session = Session(FramedTransport(reader, writer))
+        self._active_session = session
         try:
             session.peer_device_id = task.receiver_device_id
             await session.send("hello", {"device_id": self.device_id, "device_name": self.device_name})
@@ -47,10 +78,37 @@ class LanClient:
             manifest, source_map = build_manifest(task.source_paths, self.device_id, task.receiver_device_id)
             transfer_salt = secrets.token_bytes(8)
 
-            await session.send("transfer_offer", {"transfer_id": manifest.transfer_id})
+            await session.send(
+                "transfer_offer",
+                {
+                    "transfer_id": manifest.transfer_id,
+                    "entries": [
+                        {
+                            "relative_path": e.relative_path,
+                            "file_name": e.file_name,
+                            "size": e.size,
+                            "is_directory": e.is_directory,
+                        }
+                        for e in manifest.entries
+                    ],
+                },
+            )
+            self._emit_status("SENDER_REQUEST:waiting")
             accepted = await session.recv()
+            if accepted.msg_type == "transfer_decline":
+                self._emit_status("SENDER_REQUEST:rejected")
+                reason = accepted.payload.get("reason") if isinstance(accepted.payload, dict) else None
+                raise TransferDeclinedError(str(reason or "Transfer declined by receiver"))
             if accepted.msg_type != "transfer_accept":
+                self._emit_status("SENDER_REQUEST:rejected")
                 raise RuntimeError("Transfer not accepted")
+            self._emit_status("SENDER_REQUEST:accepted")
+            accepted_paths = {
+                str(path)
+                for path in accepted.payload.get("accepted_paths", [])
+                if str(path).strip()
+            }
+            manifest, source_map = _filter_transfer_payload(manifest, source_map, accepted_paths)
 
             await session.send(
                 "manifest",
@@ -76,21 +134,48 @@ class LanClient:
 
             from app.crypto.encryptor import ChunkEncryptor
 
-            sender = TransferSender(session, ChunkEncryptor(session.session_key, transfer_salt))
+            def _progress(rel: str, sent: int, total: int) -> None:
+                self._emit_status(f"PROGRESS:{rel}:{sent}:{total}")
+
+            def _check_cancel() -> bool:
+                return self._cancelled
+
+            sender = TransferSender(
+                session,
+                ChunkEncryptor(session.session_key, transfer_salt),
+                on_progress=_progress,
+                check_cancel=_check_cancel,
+            )
             for entry in manifest.entries:
+                if self._cancelled:
+                    raise asyncio.CancelledError("Transfer cancelled by user")
                 if entry.is_directory:
                     continue
+                self._emit_status(f"Sending: {entry.relative_path}")
                 await sender.send_file(manifest.transfer_id, entry.relative_path, source_map[entry.relative_path])
+
+            if self._cancelled:
+                raise asyncio.CancelledError("Transfer cancelled by user")
 
             await session.send("transfer_complete", {"transfer_id": manifest.transfer_id})
             self._emit_status(f"Transfer complete: {manifest.transfer_id}")
+            
+        except Exception as e:
+            if self._cancelled:
+                raise asyncio.CancelledError() from e
+            raise
         finally:
-            await session.transport.close()
+            self._active_session = None
+            try:
+                await session.transport.close()
+            except Exception:
+                pass
 
     async def _maybe_pair(self, session: Session) -> None:
         first = await session.recv()
         if first.msg_type == "pair_request":
-            await session.send("pair_confirm", {"pairing_code": self._pairing_code_provider() or ""})
+            # Old-style: server asks for pair — respond with empty code
+            await session.send("pair_confirm", {})
             result = await session.recv()
             if result.msg_type == "auth":
                 reason = result.payload.get("reason") or "Pairing rejected"
@@ -98,10 +183,16 @@ class LanClient:
             if result.msg_type != "pair_confirm" or not result.payload.get("trusted"):
                 reason = result.payload.get("reason") if isinstance(result.payload, dict) else None
                 raise RuntimeError(str(reason or "Pairing failed"))
-            self._emit_status("Pairing confirmed with remote device")
+
+            if "device_id" in result.payload:
+                session.peer_device_id = result.payload["device_id"]
+            self._emit_status("Connected with remote device")
             return
         if first.msg_type == "pair_confirm":
-            self._emit_status("Pairing confirmed with remote device")
+            # New-style: server auto-confirms, no code needed
+            if "device_id" in first.payload:
+                session.peer_device_id = first.payload["device_id"]
+            self._emit_status("Connected with remote device")
             return
         raise RuntimeError(f"Unexpected pairing message: {first.msg_type}")
 
