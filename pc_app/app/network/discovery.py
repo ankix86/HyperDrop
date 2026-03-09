@@ -24,7 +24,30 @@ class DiscoveredDevice:
     last_seen: float
 
 
+_cached_broadcast_addresses: list[str] | None = None
+_cached_broadcast_addresses_at = 0.0
+
+
+def _check_output_hidden(args: list[str]) -> str:
+    kwargs: dict[str, object] = {
+        "text": True,
+        "encoding": "utf-8",
+        "errors": "ignore",
+    }
+    if sys.platform.startswith("win"):
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        kwargs["startupinfo"] = startupinfo
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    return subprocess.check_output(args, **kwargs)
+
+
 def _broadcast_addresses() -> list[str]:
+    global _cached_broadcast_addresses, _cached_broadcast_addresses_at
+    now = time()
+    if _cached_broadcast_addresses is not None and now - _cached_broadcast_addresses_at < 15.0:
+        return list(_cached_broadcast_addresses)
+
     targets: dict[str, str] = {"255.255.255.255": "255.255.255.255"}
 
     def add(value: str) -> None:
@@ -41,12 +64,7 @@ def _broadcast_addresses() -> list[str]:
 
     try:
         if sys.platform.startswith("win"):
-            output = subprocess.check_output(
-                ["ipconfig"],
-                text=True,
-                encoding="utf-8",
-                errors="ignore",
-            )
+            output = _check_output_hidden(["ipconfig"])
             for block in re.split(r"(?:\r?\n){2,}", output):
                 ip_match = re.search(r"IPv4[^:]*:\s*([0-9.]+)", block)
                 mask_match = re.search(r"Subnet Mask[^:]*:\s*([0-9.]+)", block)
@@ -58,12 +76,7 @@ def _broadcast_addresses() -> list[str]:
                 )
                 add(str(network.broadcast_address))
         else:
-            output = subprocess.check_output(
-                ["ip", "-4", "addr", "show"],
-                text=True,
-                encoding="utf-8",
-                errors="ignore",
-            )
+            output = _check_output_hidden(["ip", "-4", "addr", "show"])
             for ip_text, prefix_text, brd_text in re.findall(
                 r"inet\s+([0-9.]+)/([0-9]+)(?:\s+brd\s+([0-9.]+))?",
                 output,
@@ -86,7 +99,10 @@ def _broadcast_addresses() -> list[str]:
     except Exception:
         pass
 
-    return list(targets.values())
+    result = list(targets.values())
+    _cached_broadcast_addresses = result
+    _cached_broadcast_addresses_at = now
+    return result
 
 
 class DiscoveryService:
