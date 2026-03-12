@@ -31,20 +31,11 @@ class SessionProtocol(private val crypto: CryptoEngine) {
 
             val pair = transport.receive()
             var peerDeviceId = "unknown"
-            if (pair.type == "pair_request") {
-                val po = pair.payload.asObject()
-                if (po.containsKey("device_id")) peerDeviceId = po.str("device_id")
-                // No pairing code — just confirm
-                transport.send(msg("pair_confirm", mapOf()))
-                val pairResult = transport.receive()
-                require(pairResult.type == "pair_confirm") { "expected pair_confirm but got ${pairResult.type}" }
-                val pairObj = pairResult.payload.asObject()
-                if (pairObj.containsKey("device_id")) peerDeviceId = pairObj.str("device_id")
-            } else if (pair.type == "pair_confirm") {
+            if (pair.type == "pair_confirm") {
                 val pairObj = pair.payload.asObject()
                 if (pairObj.containsKey("device_id")) peerDeviceId = pairObj.str("device_id")
             } else {
-                require(false) { "unexpected pairing message ${pair.type}" }
+                require(false) { "unexpected handshake message ${pair.type}" }
             }
 
             val serverKx = transport.receive()

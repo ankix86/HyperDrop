@@ -5,6 +5,7 @@ import json
 import os
 import queue
 import secrets
+import socket
 import threading
 import time
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ from app.network.discovery import DiscoveredDevice, DiscoveryService
 from app.network.server import IncomingTransferDecision, LanServer
 from app.transfer.queue import TransferQueue
 from app.ui_qt.sfx import SfxPlayer
+from app.utils.validators import validate_port
 
 
 @dataclass(slots=True)
@@ -64,8 +66,8 @@ class HyperDropBackend(QObject):
     statusTextChanged = Signal()
     devicesChanged = Signal()
     eventsChanged = Signal()
-    pairingCodeChanged = Signal()
     portTextChanged = Signal()
+    portStatusChanged = Signal()
     receiveDirChanged = Signal()
     activeTargetChanged = Signal()
     serverRunningChanged = Signal()
@@ -94,20 +96,21 @@ class HyperDropBackend(QObject):
         self._alias = self._get_or_create_alias()
 
         self.server: LanServer | None = None
+        self._active_server_port: int | None = None
         self.discovery: DiscoveryService | None = None
         self.client = LanClient(
             config=self.config_obj,
             device_id=self.device_id,
             device_name=self._alias or self.device_name,
-            pairing_code_provider=self._get_pairing_code,
             status_callback=self._push_event,
         )
         self.transfer_queue = TransferQueue(self.client.send_task, status_callback=self._push_event)
         self.runtime.submit(self.transfer_queue.start())
 
         self._status_text = "Idle"
-        self._pairing_code = "123456"
         self._port_text = str(self.config_obj.port)
+        self._port_status_text = ""
+        self._port_status_tone = "info"
         self._receive_dir = self.config_obj.receive_dir
         self._events: list[dict[str, str]] = []
         self._sfx = SfxPlayer()
@@ -161,6 +164,8 @@ class HyperDropBackend(QObject):
         self._start_discovery()
         if self.config_obj.auto_start_server:
             self.startServer()
+        else:
+            self._sync_port_status()
 
     def _load_or_create_device_id(self) -> str:
         from app.core.constants import APP_DIR
@@ -173,8 +178,123 @@ class HyperDropBackend(QObject):
         path.write_text(value, encoding="utf-8")
         return value
 
-    def _get_pairing_code(self) -> str:
-        return self._pairing_code.strip()
+    def _set_port_status(self, text: str, tone: str = "info") -> None:
+        changed = False
+        if text != self._port_status_text:
+            self._port_status_text = text
+            changed = True
+        if tone != self._port_status_tone:
+            self._port_status_tone = tone
+            changed = True
+        if changed:
+            self.portStatusChanged.emit()
+
+    def _parsed_port(self) -> tuple[int | None, str, str]:
+        cleaned = self._port_text.strip()
+        if not cleaned:
+            return None, "Enter a port between 1024 and 65535.", "error"
+        try:
+            port = int(cleaned)
+        except ValueError:
+            return None, "Port must be numeric.", "error"
+        if not validate_port(port):
+            return None, "Port must be between 1024 and 65535.", "error"
+        active_port = self._active_server_port if self._server_running else None
+        saved_port = self.config_obj.port
+        if active_port is not None and port != active_port:
+            if port == saved_port:
+                return port, "Restart the server to apply the saved port.", "warn"
+            return port, "Save the port, then restart the server to apply it.", "warn"
+        if port == saved_port:
+            state = f"Server is online on port {port}." if active_port is not None else "Saved communication port."
+            tone = "success" if active_port is not None else "info"
+            return port, state, tone
+        if self._server_running:
+            return port, "Save the port, then restart the server to apply it.", "warn"
+        return port, "Save to use this port next time the server starts.", "info"
+
+    def _sync_port_status(self) -> None:
+        _, text, tone = self._parsed_port()
+        self._set_port_status(text, tone)
+
+    def _port_unavailable_reason(self, port: int) -> str | None:
+        if self._active_server_port is not None and port == self._active_server_port:
+            return None
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.bind((self.config_obj.bind_host or "0.0.0.0", port))
+        except OSError:
+            return f"Port {port} is already in use on this PC."
+        return None
+
+    def _build_server(self) -> LanServer:
+        return LanServer(
+            config=self.config_obj,
+            device_id=self.device_id,
+            device_name=self._alias or self.device_name,
+            status_callback=self._push_event,
+            incoming_transfer_handler=self.prompt_incoming_transfer,
+        )
+
+    def _start_server_instance(self) -> None:
+        if self.discovery is not None:
+            self.discovery.tcp_port = self.config_obj.port
+        server = self._build_server()
+        self.runtime.submit(server.start()).result(timeout=5)
+        self.server = server
+        self._active_server_port = self.config_obj.port
+        self._server_running = True
+        self.serverRunningChanged.emit()
+        if self.discovery is not None:
+            self.discovery.accepting_connections = True
+            self.runtime.loop.call_soon_threadsafe(self.discovery.send_announce)
+            self.runtime.loop.call_soon_threadsafe(self.discovery.send_probe)
+
+    def _stop_server_instance(self, announce_offline: bool) -> None:
+        if self.server is None:
+            return
+        if self.discovery is not None:
+            self.discovery.accepting_connections = False
+            if announce_offline:
+                try:
+                    self.runtime.submit(self.discovery.send_bye()).result(timeout=2)
+                except Exception:
+                    pass
+        try:
+            self.runtime.submit(self.server.stop()).result(timeout=5)
+        finally:
+            self.server = None
+            self._active_server_port = None
+            self._server_running = False
+            self.serverRunningChanged.emit()
+
+    def _save_port_setting(self, port: int) -> bool:
+        unavailable_reason = self._port_unavailable_reason(port)
+        if unavailable_reason:
+            self._set_port_status(unavailable_reason, "error")
+            self._push_event(unavailable_reason)
+            return False
+
+        port_changed = port != self.config_obj.port
+        self.config_obj.bind_host = "0.0.0.0"
+        self.config_obj.receive_dir = self._receive_dir
+        self.config_obj.port = port
+        save_config(self.config_obj)
+        if self.discovery is not None and (not self._server_running or port == self._active_server_port):
+            self.discovery.tcp_port = port
+        if self._server_running and port != self._active_server_port:
+            self._set_port_status("Restart the server to apply the saved port.", "warn")
+            self._push_event(f"Port saved as {port}. Restart the server to apply it.")
+        elif port_changed:
+            message = (
+                f"Communication port saved as {port}."
+            )
+            self._set_port_status(message, "success")
+            self._push_event(message)
+        else:
+            self._set_port_status(f"Communication port saved as {port}.", "success")
+            self._push_event("Connection settings saved")
+        return True
 
     @Property(str, notify=aliasChanged)
     def alias(self) -> str:
@@ -891,13 +1011,17 @@ class HyperDropBackend(QObject):
     def statusText(self) -> str:
         return self._status_text
 
-    @Property(str, notify=pairingCodeChanged)
-    def pairingCode(self) -> str:
-        return self._pairing_code
-
     @Property(str, notify=portTextChanged)
     def portText(self) -> str:
         return self._port_text
+
+    @Property(str, notify=portStatusChanged)
+    def portStatusText(self) -> str:
+        return self._port_status_text
+
+    @Property(str, notify=portStatusChanged)
+    def portStatusTone(self) -> str:
+        return self._port_status_tone
 
     @Property(str, notify=receiveDirChanged)
     def receiveDir(self) -> str:
@@ -961,19 +1085,12 @@ class HyperDropBackend(QObject):
         return self._events
 
     @Slot(str)
-    def setPairingCode(self, value: str) -> None:
-        cleaned = value.strip()
-        if cleaned == self._pairing_code:
-            return
-        self._pairing_code = cleaned
-        self.pairingCodeChanged.emit()
-
-    @Slot(str)
     def setPortText(self, value: str) -> None:
         if value == self._port_text:
             return
         self._port_text = value
         self.portTextChanged.emit()
+        self._sync_port_status()
 
     @Slot(str)
     def selectDevice(self, device_id: str) -> None:
@@ -992,28 +1109,12 @@ class HyperDropBackend(QObject):
 
     @Slot()
     def saveConnectionSettings(self) -> None:
-        try:
-            port = int(self._port_text.strip())
-        except ValueError:
-            self._push_event("Port must be numeric")
+        port, message, tone = self._parsed_port()
+        if port is None:
+            self._set_port_status(message, tone)
+            self._push_event(message)
             return
-        if port < 1024 or port > 65535:
-            self._push_event("Port must be in range 1024-65535")
-            return
-
-        self.config_obj.bind_host = "0.0.0.0"
-        self.config_obj.port = port
-        self.config_obj.receive_dir = self._receive_dir
-        save_config(self.config_obj)
-        if self.discovery is not None:
-            self.discovery.tcp_port = port
-        self._push_event("Connection settings saved")
-
-    @Slot()
-    def generatePairingCode(self) -> None:
-        self._pairing_code = f"{secrets.randbelow(900000) + 100000}"
-        self.pairingCodeChanged.emit()
-        self._push_event("New pairing code generated")
+        self._save_port_setting(port)
 
     @Slot()
     def chooseReceiveFolder(self) -> None:
@@ -1140,35 +1241,75 @@ class HyperDropBackend(QObject):
 
     @Slot()
     def startServer(self) -> None:
-        try:
-            self.config_obj.bind_host = "0.0.0.0"
-            self.config_obj.port = int(self._port_text.strip())
-            save_config(self.config_obj)
-        except Exception as exc:
-            self._push_event(f"Invalid bind settings: {exc}")
+        port, message, tone = self._parsed_port()
+        if port is None:
+            self._set_port_status(message, tone)
+            self._push_event(message)
             return
 
         if self.server is not None:
             self._push_event("Server already running")
             return
 
-        if self.discovery is not None:
-            self.discovery.tcp_port = self.config_obj.port
+        unavailable_reason = self._port_unavailable_reason(port)
+        if unavailable_reason:
+            self._set_port_status(unavailable_reason, "error")
+            self._push_event(unavailable_reason)
+            return
 
-        self.server = LanServer(
-            config=self.config_obj,
-            device_id=self.device_id,
-            device_name=self._alias or self.device_name,
-            get_pairing_code=self._get_pairing_code,
-            status_callback=self._push_event,
-            incoming_transfer_handler=self.prompt_incoming_transfer,
-        )
-        self.runtime.submit(self.server.start())
-        self._server_running = True
-        self.serverRunningChanged.emit()
-        if self.discovery is not None:
-            self.discovery.accepting_connections = True
+        self.config_obj.bind_host = "0.0.0.0"
+        self.config_obj.receive_dir = self._receive_dir
+        self.config_obj.port = port
+        try:
+            self._start_server_instance()
+        except Exception as exc:
+            self._set_port_status(f"Could not start receiver on port {port}: {exc}", "error")
+            self._push_event(f"Could not start receiver on port {port}: {exc}")
+            return
+        save_config(self.config_obj)
+        self._set_port_status(f"Receiver is online on port {port}.", "success")
         self._push_event("Server start requested")
+
+    @Slot()
+    def restartServer(self) -> None:
+        port, message, tone = self._parsed_port()
+        if port is None:
+            self._set_port_status(message, tone)
+            self._push_event(message)
+            return
+        if self.server is None:
+            self.startServer()
+            return
+
+        unavailable_reason = self._port_unavailable_reason(port)
+        if unavailable_reason:
+            self._set_port_status(unavailable_reason, "error")
+            self._push_event(unavailable_reason)
+            return
+
+        previous_port = self._active_server_port or self.config_obj.port
+        self.config_obj.bind_host = "0.0.0.0"
+        self.config_obj.receive_dir = self._receive_dir
+        self.config_obj.port = port
+
+        self._push_event(f"Restarting server on port {port}...")
+        self._stop_server_instance(announce_offline=True)
+        try:
+            self._start_server_instance()
+        except Exception as exc:
+            self.config_obj.port = previous_port
+            try:
+                self._start_server_instance()
+            except Exception:
+                pass
+            message = f"Could not restart the server on port {port}: {exc}"
+            self._set_port_status(message, "error")
+            self._push_event(message)
+            return
+
+        save_config(self.config_obj)
+        self._set_port_status(f"Server restarted on port {port}.", "success")
+        self._push_event(f"Server restarted on port {port}")
 
     @Slot()
     def stopServer(self) -> None:
@@ -1184,13 +1325,8 @@ class HyperDropBackend(QObject):
             )
         if self.server is None:
             return
-        self.runtime.submit(self.server.stop())
-        self.server = None
-        self._server_running = False
-        self.serverRunningChanged.emit()
-        if self.discovery is not None:
-            self.discovery.accepting_connections = False
-            self.runtime.submit(self.discovery.send_bye())
+        self._stop_server_instance(announce_offline=True)
+        self._sync_port_status()
         self._push_event("Server stop requested")
 
     @Slot()
@@ -1366,7 +1502,7 @@ class HyperDropBackend(QObject):
             futures.append(self.runtime.submit(self.server.stop()))
             self.server = None
         if self.discovery is not None:
-            # Broadcast bye before stopping so paired phones disconnect immediately
+            # Broadcast bye before stopping so nearby phones disconnect immediately
             try:
                 self.runtime.submit(self.discovery.send_bye()).result(timeout=1)
             except Exception:

@@ -19,6 +19,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,6 +37,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -78,6 +81,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -126,7 +130,7 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
         listOf(
             UiTab("Receive", R.drawable.ic_tab_activity),
             UiTab("Send", R.drawable.ic_tab_send),
-            UiTab("Settings", R.drawable.ic_tab_control),
+            UiTab("Setting", R.drawable.ic_tab_control),
         )
     }
 
@@ -259,6 +263,12 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                             }
                             else -> SettingsTab(
                                 receiveLocation = if (settings.receiveTreeUri.isNullOrBlank()) "App storage" else "Custom folder selected",
+                                currentPort = settings.localPort,
+                                isServiceRunning = isServiceRunning,
+                                onSavePort = vm::updateLocalPort,
+                                onStartService = vm::startService,
+                                onStopService = vm::stopService,
+                                onRestartService = vm::restartService,
                                 onPickReceivePath = { receiveTreePicker.launch(null) },
                                 onOpenInfo = {
                                     context.startActivity(
@@ -1036,32 +1046,121 @@ private fun ReceiveStatusTab(
 @Composable
 private fun SettingsTab(
     receiveLocation: String,
+    currentPort: Int,
+    isServiceRunning: Boolean,
+    onSavePort: (Int) -> Unit,
+    onStartService: () -> Unit,
+    onStopService: () -> Unit,
+    onRestartService: () -> Unit,
     onPickReceivePath: () -> Unit,
     onOpenInfo: () -> Unit,
 ) {
+    var portText by rememberSaveable(currentPort) { mutableStateOf(currentPort.toString()) }
+    val parsedPort = portText.toIntOrNull()
+    val portError = when {
+        portText.isBlank() -> "Enter a port between 1024 and 65535."
+        parsedPort == null -> "Port must be numeric."
+        parsedPort !in 1024..65535 -> "Port must be between 1024 and 65535."
+        else -> null
+    }
+    val portHelper = when {
+        portError != null -> portError
+        parsedPort == currentPort -> "Current listening port for this Android receiver."
+        isServiceRunning -> "Save the port, then restart the server to switch to it."
+        else -> "Saving will apply the port the next time the receiver starts."
+    }
+    val portWarning = when {
+        portError != null -> null
+        parsedPort != null && parsedPort != currentPort && isServiceRunning -> "Save the port, then restart the server to apply it."
+        parsedPort != null && parsedPort != currentPort -> "Save the port to use it the next time the receiver starts."
+        else -> null
+    }
+
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Settings",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                FilledTonalButton(onClick = onOpenInfo) { Text("Info") }
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val compactHeader = maxWidth < 360.dp
+                if (compactHeader) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "Setting",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        FilledTonalButton(onClick = onOpenInfo, modifier = Modifier.fillMaxWidth()) {
+                            Text("GitHub")
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Setting",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        FilledTonalButton(onClick = onOpenInfo) { Text("GitHub") }
+                    }
+                }
             }
         }
         item {
-            ShellCard {
-                Text("Receiving Folder", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                Spacer(Modifier.height(8.dp))
-                Text(receiveLocation, color = Color(0xFFEAF2FF))
-                Spacer(Modifier.height(10.dp))
-                FilledTonalButton(onClick = onPickReceivePath) { Text("Change default folder") }
+            SettingsSectionCard(
+                title = "Network",
+                description = "Control the server state and the communication port used for incoming transfers.",
+            ) {
+                if (portWarning != null) {
+                    Text(
+                        portWarning,
+                        color = Color(0xFFFFBF47),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                ServerControlCard(
+                    isServiceRunning = isServiceRunning,
+                    onStartService = onStartService,
+                    onStopService = onStopService,
+                    onRestartService = onRestartService,
+                )
+                OutlinedTextField(
+                    value = portText,
+                    onValueChange = { portText = it.filter(Char::isDigit) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Communication port") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = portError != null,
+                )
+                Text(
+                    portHelper,
+                    color = if (portError != null) Color(0xFFFF8DB5) else Color(0xFFB6C5F8),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                FilledTonalButton(
+                    onClick = { parsedPort?.let(onSavePort) },
+                    enabled = portError == null && parsedPort != null && parsedPort != currentPort,
+                ) {
+                    Text("Save Port")
+                }
+            }
+        }
+        item {
+            SettingsSectionCard(
+                title = "Receive",
+                description = "Choose where files accepted on this device are stored by default.",
+            ) {
+                SettingsValueCard(
+                    label = "File Location",
+                    value = receiveLocation,
+                    actionLabel = "Change",
+                    onAction = onPickReceivePath,
+                )
             }
         }
         item {
@@ -1090,6 +1189,167 @@ private fun SettingsTab(
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color(0xFFB6C5F8)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSectionCard(
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    ShellCard(modifier = modifier) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+            Text(
+                text = description,
+                modifier = Modifier.fillMaxWidth(),
+                color = Color(0xFFB6C5F8),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsValueCard(
+    label: String,
+    value: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF10152F)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            val compact = maxWidth < 360.dp
+            if (compact) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(label, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Text(value, color = Color(0xFFEAF2FF), style = MaterialTheme.typography.bodyMedium)
+                    }
+                    FilledTonalButton(onClick = onAction, modifier = Modifier.fillMaxWidth()) {
+                        Text(actionLabel)
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(label, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Text(value, color = Color(0xFFEAF2FF), style = MaterialTheme.typography.bodyMedium)
+                    }
+                    FilledTonalButton(onClick = onAction) {
+                        Text(actionLabel)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServerControlCard(
+    isServiceRunning: Boolean,
+    onStartService: () -> Unit,
+    onStopService: () -> Unit,
+    onRestartService: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF10152F)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            val compact = maxWidth < 400.dp
+            val statusText = if (isServiceRunning) {
+                "Online and ready for incoming transfers."
+            } else {
+                "Offline until you start the server."
+            }
+            val statusColor = if (isServiceRunning) Color(0xFF98F0BF) else Color(0xFFB6C5F8)
+
+            if (compact) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Server", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Text(statusText, color = statusColor, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (isServiceRunning) {
+                            FilledTonalButton(onClick = onRestartService, modifier = Modifier.fillMaxWidth()) {
+                                Text("Restart")
+                            }
+                        }
+                        Button(
+                            onClick = { if (isServiceRunning) onStopService() else onStartService() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isServiceRunning) Color(0xFF7D3158) else Color(0xFF44D671),
+                                contentColor = if (isServiceRunning) Color.White else Color(0xFF08122E)
+                            )
+                        ) {
+                            Text(if (isServiceRunning) "Stop" else "Start")
+                        }
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Server", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Text(statusText, color = statusColor, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (isServiceRunning) {
+                            FilledTonalButton(onClick = onRestartService) { Text("Restart") }
+                        }
+                        Button(
+                            onClick = { if (isServiceRunning) onStopService() else onStartService() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isServiceRunning) Color(0xFF7D3158) else Color(0xFF44D671),
+                                contentColor = if (isServiceRunning) Color.White else Color(0xFF08122E)
+                            )
+                        ) {
+                            Text(if (isServiceRunning) "Stop" else "Start")
+                        }
+                    }
+                }
             }
         }
     }

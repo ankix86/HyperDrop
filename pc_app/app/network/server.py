@@ -5,14 +5,11 @@ import base64
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Awaitable, Callable
 
-from app.core.config import save_config
-from app.core.models import AppConfig, DeviceRecord
+from app.core.models import AppConfig
 from app.crypto.key_exchange import KeyPair
-from app.crypto.pairing import pairing_code_hash
 from app.crypto.session_keys import derive_session_key
 from app.network.protocol import ProtocolMessage
 from app.network.transport import FramedTransport, Session
@@ -56,14 +53,12 @@ class LanServer:
         config: AppConfig,
         device_id: str,
         device_name: str,
-        get_pairing_code: Callable[[], str],
         status_callback: Callable[[str], None] | None = None,
         incoming_transfer_handler: Callable[[str, str, list[dict]], Awaitable[IncomingTransferDecision]] | None = None,
     ) -> None:
         self.config = config
         self.device_id = device_id
         self.device_name = device_name
-        self._get_pairing_code = get_pairing_code
         self._status_callback = status_callback
         self._incoming_transfer_handler = incoming_transfer_handler
         self._server: asyncio.AbstractServer | None = None
@@ -125,9 +120,6 @@ class LanServer:
             while True:
                 msg = await session.recv()
                 stage = f"msg:{msg.msg_type}"
-                if msg.msg_type == "ping":
-                    await session.send("pong", {"ts": datetime.now(timezone.utc).isoformat()})
-                    continue
                 if msg.msg_type == "transfer_offer":
                     transfer_id = str(msg.payload["transfer_id"])
                     preview_entries = list(msg.payload.get("entries", []))
@@ -370,7 +362,8 @@ class LanServer:
             await session.transport.close()
 
     async def _authenticate(self, peer_id: str, peer_name: str, session: Session) -> bool:
-        # No pairing required — auto-accept all discovered peers
+        # Discovery is enough for the current product flow, so the server
+        # immediately identifies itself and continues the session handshake.
         await session.send("pair_confirm", {"trusted": True, "device_id": self.device_id, "device_name": self.device_name})
         self._emit_status(f"Connected with device: {peer_name}")
         return True

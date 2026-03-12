@@ -37,7 +37,7 @@ class TransferForegroundService : Service() {
         scope = scope,
         deviceIdProvider = { currentSettings?.deviceId.orEmpty() },
         deviceNameProvider = { currentSettings?.deviceName ?: android.os.Build.MODEL },
-        tcpPortProvider = { currentSettings?.pcPort ?: AppConstants.DEFAULT_PORT },
+        tcpPortProvider = { currentSettings?.localPort ?: AppConstants.DEFAULT_PORT },
         platform = "android",
         onPeerOffline = { peerId -> TransferServiceBus.emit("peer_offline:$peerId") }
     )

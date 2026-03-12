@@ -82,13 +82,11 @@ class MainWindow(tk.Tk):
             config=self.config_obj,
             device_id=self.device_id,
             device_name=self.device_name,
-            pairing_code_provider=self._get_pairing_code,
             status_callback=self._push_event,
         )
         self.transfer_queue = TransferQueue(self.client.send_task, status_callback=self._push_event)
         self.runtime.submit(self.transfer_queue.start())
 
-        self._pairing_code = "123456"
         self._event_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self._build_ui()
         self._animate_vfx()
@@ -109,7 +107,6 @@ class MainWindow(tk.Tk):
 
         self.status_var = tk.StringVar(value="Idle")
         self.port_var = tk.StringVar(value=str(self.config_obj.port))
-        self.pairing_var = tk.StringVar(value=self._pairing_code)
 
         controls = ttk.Frame(outer, style="Page.TFrame")
         controls.pack(fill="x", pady=(12, 8))
@@ -122,11 +119,8 @@ class MainWindow(tk.Tk):
 
         ttk.Label(connection_card, text="Port", style="Muted.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 4))
         ttk.Entry(connection_card, textvariable=self.port_var, width=8).grid(row=1, column=1, sticky="ew", padx=(0, 10))
-        ttk.Label(connection_card, text="Pairing", style="Muted.TLabel").grid(row=1, column=2, sticky="w", padx=(0, 4))
-        ttk.Entry(connection_card, textvariable=self.pairing_var, width=10).grid(row=1, column=3, sticky="ew", padx=(0, 10))
-        self._make_button(connection_card, "Refresh Devices", self.refresh_discovery, accent=True).grid(row=1, column=4, padx=(0, 6))
-        self._make_button(connection_card, "New Code", self._new_pairing_code).grid(row=1, column=5, padx=(0, 6))
-        self._make_button(connection_card, "Settings", self.open_settings).grid(row=1, column=6)
+        self._make_button(connection_card, "Refresh Devices", self.refresh_discovery, accent=True).grid(row=1, column=2, padx=(0, 6))
+        self._make_button(connection_card, "Settings", self.open_settings).grid(row=1, column=3)
 
         service_card = ttk.Frame(controls, style="Card.TFrame", padding=12)
         service_card.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
@@ -378,13 +372,6 @@ class MainWindow(tk.Tk):
         except Exception:
             pass
 
-    def _new_pairing_code(self) -> None:
-        self._pairing_code = f"{secrets.randbelow(900000) + 100000}"
-        self.pairing_var.set(self._pairing_code)
-
-    def _get_pairing_code(self) -> str:
-        return self.pairing_var.get().strip()
-
     def _push_event(self, text: str) -> None:
         self._event_queue.put(("info", text))
 
@@ -442,7 +429,6 @@ class MainWindow(tk.Tk):
             config=self.config_obj,
             device_id=self.device_id,
             device_name=self.device_name,
-            get_pairing_code=self._get_pairing_code,
             status_callback=self._push_event,
         )
         self.runtime.submit(self.server.start())

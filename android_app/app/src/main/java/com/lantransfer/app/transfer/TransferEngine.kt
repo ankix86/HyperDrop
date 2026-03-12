@@ -201,8 +201,8 @@ class TransferEngine(private val context: Context) {
         withContext(Dispatchers.IO) {
             isCancelled = false
             val initialSettings = settingsProvider()
-            val serverSocket = ServerSocket(initialSettings.pcPort)
-            onEvent("Android receiver listening on ${initialSettings.pcPort}")
+            val serverSocket = ServerSocket(initialSettings.localPort)
+            onEvent("Android receiver listening on ${initialSettings.localPort}")
             try {
                 while (isRunning() && !isCancelled) {
                     val socket = serverSocket.accept()
@@ -564,7 +564,6 @@ class TransferEngine(private val context: Context) {
                         break
                     }
 
-                    "ping" -> transport.send(protocol.msg("pong", mapOf("ts" to JsonPrimitive(System.currentTimeMillis()))))
                     else -> transport.send(protocol.msg("transfer_error", mapOf("reason" to JsonPrimitive("Unhandled ${msg.type}"))))
                 }
             }

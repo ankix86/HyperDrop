@@ -1,4 +1,4 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
@@ -37,11 +37,12 @@ ApplicationWindow {
     readonly property color waveBlue: "#4f74ff"
     readonly property color waveCyan: "#5eb4ff"
     readonly property bool compactLayout: width < 1320
+    readonly property bool settingsNarrow: width < 1180
     readonly property int contentTopInset: 86
     readonly property var tabs: [
         { label: "Receive", accent: "#58e7ff", iconSource: "../../../assets/icons/tab-activity.png" },
         { label: "Send", accent: "#b45cff", iconSource: "../../../assets/icons/tab-send.png" },
-        { label: "Settings", accent: "#6a84ff", iconSource: "../../../assets/icons/tab-control.png" }
+        { label: "Setting", accent: "#6a84ff", iconSource: "../../../assets/icons/tab-control.png" }
     ]
 
     function statusColor(level) {
@@ -244,7 +245,7 @@ ApplicationWindow {
         anchors.margins: 0
         spacing: 0
 
-        // ── Sidebar ──────────────────────────────────────────────────
+        // â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Rectangle {
             Layout.fillHeight: true
             Layout.preferredWidth: 220
@@ -332,7 +333,7 @@ ApplicationWindow {
             }
         }
 
-        // ── Main Content Area ────────────────────────────────────────
+        // â”€â”€ Main Content Area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -467,7 +468,7 @@ ApplicationWindow {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "↓"
+                    text: "â†“"
                     color: window.textPrimary
                     horizontalAlignment: Text.AlignHCenter
                     font.pixelSize: 38
@@ -674,7 +675,7 @@ ApplicationWindow {
                                         }
 
                                         Text {
-                                            text: modelData.parentPath ? modelData.parentPath + " � " + modelData.sizeText : modelData.sizeText
+                                            text: modelData.parentPath ? modelData.parentPath + " • " + modelData.sizeText : modelData.sizeText
                                             color: "#bfcff5"
                                             font.pixelSize: 13
                                             elide: Text.ElideRight
@@ -958,7 +959,7 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                     }
                                     Text {
-                                        text: modelData.statusText + " • " + modelData.sizeText
+                                        text: modelData.statusText + " â€¢ " + modelData.sizeText
                                         color: modelData.done ? "#70f0ff" : "#95a9e0"
                                         font.pixelSize: 12
                                         elide: Text.ElideRight
@@ -2278,8 +2279,8 @@ ApplicationWindow {
 
                         ColumnLayout {
                             spacing: 4
-                            Text { text: "Settings"; color: window.textPrimary; font.pixelSize: 32; font.bold: true }
-                            Text { text: "Choose where received files are stored."; color: window.textSecondary; font.pixelSize: 14 }
+                            Text { text: "Setting"; color: window.textPrimary; font.pixelSize: 32; font.bold: true }
+                            Text { text: "Organize HyperDrop preferences by setting type."; color: window.textSecondary; font.pixelSize: 14 }
                         }
 
                         Item { Layout.fillWidth: true }
@@ -2294,31 +2295,158 @@ ApplicationWindow {
                     }
                 }
 
-                SectionCard {
+                AdaptiveSectionCard {
                     Layout.fillWidth: true
                     Layout.leftMargin: 40
                     Layout.rightMargin: 40
-                    height: 176
-                    title: "Receiving Folder"
-                    subtitle: "Files accepted on this PC are saved here by default."
+                    title: "Network"
+                    subtitle: "Control the server state and the communication port used for incoming transfers."
+
+                        Text {
+                            Layout.fillWidth: true
+                            visible: backend.portStatusTone === "warn"
+                            text: backend.portStatusText
+                            color: "#ffbf47"
+                            font.pixelSize: 13
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: serverPanelLayout.implicitHeight + 28
+                            Layout.preferredHeight: implicitHeight
+                            radius: 16
+                            color: "#10152f"
+                            border.width: 1
+                            border.color: "#31458f"
+
+                            ColumnLayout {
+                                id: serverPanelLayout
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: window.settingsNarrow ? 10 : 0
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+
+                                    Text {
+                                        text: "Server"
+                                        color: window.textPrimary
+                                        font.pixelSize: 15
+                                        font.bold: true
+                                    }
+
+                                    Text {
+                                        text: backend.serverRunning ? "Online and ready for incoming transfers." : "Offline until you start the server."
+                                        color: backend.serverRunning ? "#98f0bf" : window.textSecondary
+                                        font.pixelSize: 12
+                                    }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+                                    Layout.alignment: Qt.AlignRight
+
+                                    Item {
+                                        Layout.fillWidth: true
+                                        visible: !window.settingsNarrow
+                                    }
+
+                                    NeonButton {
+                                        visible: backend.serverRunning
+                                        text: "Restart"
+                                        role: "ghost"
+                                        compact: true
+                                        onClicked: function() { backend.restartServer() }
+                                    }
+
+                                    NeonButton {
+                                        text: backend.serverRunning ? "Stop" : "Start"
+                                        role: backend.serverRunning ? "danger" : "success"
+                                        compact: true
+                                        onClicked: function() {
+                                            if (backend.serverRunning) {
+                                                backend.stopServer()
+                                            } else {
+                                                backend.startServer()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        LabelField {
+                            Layout.fillWidth: true
+                            label: "Communication Port"
+                            value: backend.portText
+                            onEdited: function(text) { backend.setPortText(text) }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: backend.portStatusText
+                            color: backend.portStatusTone === "error"
+                                ? "#ff8db5"
+                                : backend.portStatusTone === "warn"
+                                    ? "#ffbf47"
+                                : backend.portStatusTone === "success"
+                                    ? "#7dffbf"
+                                    : "#b7c8ff"
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                            visible: backend.portStatusTone !== "warn"
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            NeonButton {
+                                text: "Save Port"
+                                role: "primary"
+                                compact: false
+                                onClicked: function() { backend.saveConnectionSettings() }
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+                }
+
+                AdaptiveSectionCard {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 40
+                    Layout.rightMargin: 40
+                    title: "Receive"
+                    subtitle: "Choose where files accepted on this PC are stored by default."
 
                     ColumnLayout {
-                        anchors.fill: parent; anchors.margins: 24; anchors.topMargin: 84
+                        Layout.fillWidth: true
                         spacing: 16
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 8
-                            Text { text: "Default Download Location"; color: window.textSecondary; font.pixelSize: 12; font.bold: true }
-                            RowLayout {
-                                 spacing: 12
+                            Text { text: "File Location"; color: window.textSecondary; font.pixelSize: 12; font.bold: true }
+                            ColumnLayout {
+                                 Layout.fillWidth: true
+                                 spacing: 10
                                  Rectangle {
                                      Layout.fillWidth: true; Layout.preferredHeight: 46; radius: 14; color: "#09102a"; border.width: 1; border.color: "#31458f"
-                                     Text { 
+                                     Text {
                                          anchors.fill: parent; anchors.leftMargin: 16; verticalAlignment: Text.AlignVCenter
-                                         text: backend.receiveDir; color: window.textPrimary; font.pixelSize: 13; elide: Text.ElideMiddle 
+                                         text: backend.receiveDir; color: window.textPrimary; font.pixelSize: 13; elide: Text.ElideMiddle
                                      }
                                  }
-                                 NeonButton { text: "Change"; compact: true; onClicked: function() { backend.chooseReceiveFolder() } }
-                                 NeonButton { text: "Open"; compact: true; onClicked: function() { backend.openReceiveFolder() } }
+                                 RowLayout {
+                                     Layout.fillWidth: true
+                                     spacing: 12
+
+                                     Item { Layout.fillWidth: true }
+
+                                     NeonButton { text: "Change"; compact: true; onClicked: function() { backend.chooseReceiveFolder() } }
+                                     NeonButton { text: "Open"; compact: true; onClicked: function() { backend.openReceiveFolder() } }
+                                 }
                             }
                         }
                     }
@@ -2379,6 +2507,54 @@ ApplicationWindow {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; spacing: 4
             Text { text: sectionCard.title; color: window.textPrimary; font.pixelSize: 18; font.bold: true }
             Text { width: parent.width; text: sectionCard.subtitle; color: window.textSecondary; font.pixelSize: 13; wrapMode: Text.WordWrap }
+        }
+    }
+
+    component AdaptiveSectionCard: Rectangle {
+        id: adaptiveSectionCard
+        property string title: ""
+        property string subtitle: ""
+        property int contentSpacing: 14
+        default property alias contentData: adaptiveSectionContent.data
+        radius: window.radiusLg
+        color: window.cardSurface
+        border.width: 1
+        border.color: window.cardBorder
+        clip: true
+        implicitHeight: adaptiveSectionLayout.implicitHeight + 36
+
+        ColumnLayout {
+            id: adaptiveSectionLayout
+            anchors.fill: parent
+            anchors.margins: 18
+            spacing: 18
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
+
+                Text {
+                    Layout.fillWidth: true
+                    text: adaptiveSectionCard.title
+                    color: window.textPrimary
+                    font.pixelSize: 18
+                    font.bold: true
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: adaptiveSectionCard.subtitle
+                    color: window.textSecondary
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+            }
+
+            ColumnLayout {
+                id: adaptiveSectionContent
+                Layout.fillWidth: true
+                spacing: adaptiveSectionCard.contentSpacing
+            }
         }
     }
 
@@ -2651,6 +2827,7 @@ ApplicationWindow {
         }
     }
 }
+
 
 
 

@@ -68,7 +68,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val discovery = LanDiscovery(
         deviceIdProvider = { _settings.value.deviceId },
         deviceNameProvider = { _settings.value.deviceName },
-        tcpPortProvider = { _settings.value.pcPort },
+        tcpPortProvider = { _settings.value.localPort },
         platform = "android"
     )
     // Removed redundant discoveryResponder. Managed solely by TransferForegroundService now.
@@ -154,7 +154,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val isServiceRunning = TransferServiceBus.isServiceRunning
 
     private val _settings = MutableStateFlow(
-        AppSettings("", "", "", 54545, "123456", false, null)
+        AppSettings("", "", "", 54545, 54545, false, null)
     )
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
@@ -198,7 +198,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         val s = _settings.value
                         val pairedPeer = _discoveredPeers.value.firstOrNull { it.deviceId == departedId }
                         if (pairedPeer != null && pairedPeer.ip == s.pcHost) {
-                            settingsRepo.updateConnection("", s.pcPort, s.pairingCode)
+                            settingsRepo.updateConnection("", s.pcPort)
                         }
                         _discoveredPeers.value = _discoveredPeers.value.filter { it.deviceId != departedId }
                     }
@@ -291,12 +291,39 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         app.startService(Intent(app, TransferForegroundService::class.java).apply { action = TransferForegroundService.ACTION_STOP })
     }
 
-    fun updateConnection(host: String, port: Int, pairingCode: String) {
-        viewModelScope.launch { settingsRepo.updateConnection(host, port, pairingCode) }
+    fun restartService() {
+        val wasRunning = isServiceRunning.value
+        if (!wasRunning) {
+            startService()
+            return
+        }
+        stopService()
+        viewModelScope.launch {
+            delay(350)
+            startService()
+        }
     }
 
-    fun updatePairingCode(pairingCode: String) {
-        viewModelScope.launch { settingsRepo.updatePairingCode(pairingCode) }
+    fun updateLocalPort(port: Int) {
+        if (port !in 1024..65535) {
+            push("Port must be between 1024 and 65535")
+            return
+        }
+        viewModelScope.launch {
+            val current = settingsRepo.settingsFlow.first()
+            if (current.localPort == port) {
+                push("Communication port is already $port")
+                return@launch
+            }
+            settingsRepo.updateLocalPort(port)
+            push(
+                if (isServiceRunning.value) {
+                    "Communication port saved as $port. Restart the server to apply it."
+                } else {
+                    "Communication port saved as $port"
+                }
+            )
+        }
     }
 
     fun updateDeviceName(name: String) {
@@ -304,11 +331,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun connectToPeer(peer: DiscoveredPeer) {
-        val code = _settings.value.pairingCode
         viewModelScope.launch {
-            settingsRepo.updateConnection(peer.ip, peer.port, code)
-            // Ensure receiver stays reachable after target/port changes.
-            startService()
+            settingsRepo.updateConnection(peer.ip, peer.port)
             push("Connected target: ${peer.deviceName} (${peer.ip}:${peer.port})")
         }
     }
@@ -325,7 +349,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val currentHost = _settings.value.pcHost
             val currentPort = _settings.value.pcPort
             if (currentHost.isNotBlank() && peers.none { it.ip == currentHost && it.port == currentPort }) {
-                settingsRepo.updateConnection("", currentPort, _settings.value.pairingCode)
+                settingsRepo.updateConnection("", currentPort)
             }
             if (!silent) push("Found ${peers.size} device(s)")
         }

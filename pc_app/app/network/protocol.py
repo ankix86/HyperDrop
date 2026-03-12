@@ -9,7 +9,6 @@ from app.core.constants import PROTOCOL_VERSION
 
 MESSAGE_TYPES = {
     "hello",
-    "pair_request",
     "pair_confirm",
     "auth",
     "key_exchange",
@@ -22,8 +21,6 @@ MESSAGE_TYPES = {
     "transfer_complete",
     "transfer_error",
     "cancel",
-    "ping",
-    "pong",
     "resume_request",
     "resume_response",
 }

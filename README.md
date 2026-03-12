@@ -466,4 +466,4 @@ Check:
 
 ## Status of this repository
 
-This repository is an actively modified product codebase. UI and transfer flow details have changed substantially over time. If you are making changes, read `COLLABORATION.md` before changing protocol, discovery, transfer flow, or UI state handling.
+This repository is an actively modified product codebase. UI and transfer flow details have changed substantially over time. If you are making changes, read `CONTRIBUTING.md` before changing protocol, discovery, transfer flow, or UI state handling.

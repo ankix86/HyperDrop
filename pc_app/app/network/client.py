@@ -40,13 +40,11 @@ class LanClient:
         config: AppConfig,
         device_id: str,
         device_name: str,
-        pairing_code_provider: Callable[[], str],
         status_callback: Callable[[str], None] | None = None,
     ) -> None:
         self.config = config
         self.device_id = device_id
         self.device_name = device_name
-        self._pairing_code_provider = pairing_code_provider
         self._status_callback = status_callback
         self._cancelled = False
         self._active_session: Session | None = None
@@ -68,7 +66,7 @@ class LanClient:
         try:
             session.peer_device_id = task.receiver_device_id
             await session.send("hello", {"device_id": self.device_id, "device_name": self.device_name})
-            await self._maybe_pair(session)
+            await self._receive_server_identity(session)
             await self._key_exchange(session)
 
             auth = await session.recv()
@@ -171,30 +169,14 @@ class LanClient:
             except Exception:
                 pass
 
-    async def _maybe_pair(self, session: Session) -> None:
+    async def _receive_server_identity(self, session: Session) -> None:
         first = await session.recv()
-        if first.msg_type == "pair_request":
-            # Old-style: server asks for pair — respond with empty code
-            await session.send("pair_confirm", {})
-            result = await session.recv()
-            if result.msg_type == "auth":
-                reason = result.payload.get("reason") or "Pairing rejected"
-                raise RuntimeError(str(reason))
-            if result.msg_type != "pair_confirm" or not result.payload.get("trusted"):
-                reason = result.payload.get("reason") if isinstance(result.payload, dict) else None
-                raise RuntimeError(str(reason or "Pairing failed"))
-
-            if "device_id" in result.payload:
-                session.peer_device_id = result.payload["device_id"]
-            self._emit_status("Connected with remote device")
-            return
         if first.msg_type == "pair_confirm":
-            # New-style: server auto-confirms, no code needed
             if "device_id" in first.payload:
                 session.peer_device_id = first.payload["device_id"]
             self._emit_status("Connected with remote device")
             return
-        raise RuntimeError(f"Unexpected pairing message: {first.msg_type}")
+        raise RuntimeError(f"Unexpected handshake message: {first.msg_type}")
 
     async def _key_exchange(self, session: Session) -> None:
         server = await session.recv()

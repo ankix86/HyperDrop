@@ -11,7 +11,6 @@ class DeviceRecord:
     name: str
     trusted: bool = False
     last_seen: str = ""
-    pairing_token_hash: str = ""
 
 
 @dataclass(slots=True)
@@ -35,7 +34,12 @@ class AppConfig:
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "AppConfig":
         trusted = {
-            key: DeviceRecord(**value)
+            key: DeviceRecord(
+                device_id=str(value.get("device_id", "")),
+                name=str(value.get("name", "")),
+                trusted=bool(value.get("trusted", False)),
+                last_seen=str(value.get("last_seen", "")),
+            )
             for key, value in data.get("trusted_devices", {}).items()
         }
         return cls(

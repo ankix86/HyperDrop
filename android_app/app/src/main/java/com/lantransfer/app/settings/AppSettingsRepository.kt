@@ -17,7 +17,7 @@ data class AppSettings(
     val deviceName: String,
     val pcHost: String,
     val pcPort: Int,
-    val pairingCode: String,
+    val localPort: Int,
     val autoScreenshotSync: Boolean,
     val receiveTreeUri: String?
 )
@@ -28,7 +28,7 @@ class AppSettingsRepository(private val context: Context) {
         val DEVICE_NAME = stringPreferencesKey("device_name")
         val PC_HOST = stringPreferencesKey("pc_host")
         val PC_PORT = intPreferencesKey("pc_port")
-        val PAIRING_CODE = stringPreferencesKey("pairing_code")
+        val LOCAL_PORT = intPreferencesKey("local_port")
         val AUTO_SS = booleanPreferencesKey("auto_ss")
         val RECEIVE_TREE = stringPreferencesKey("receive_tree")
     }
@@ -39,7 +39,7 @@ class AppSettingsRepository(private val context: Context) {
             deviceName = p[Keys.DEVICE_NAME] ?: android.os.Build.MODEL,
             pcHost = p[Keys.PC_HOST] ?: "",
             pcPort = p[Keys.PC_PORT] ?: AppConstants.DEFAULT_PORT,
-            pairingCode = p[Keys.PAIRING_CODE] ?: "123456",
+            localPort = p[Keys.LOCAL_PORT] ?: p[Keys.PC_PORT] ?: AppConstants.DEFAULT_PORT,
             autoScreenshotSync = p[Keys.AUTO_SS] ?: false,
             receiveTreeUri = p[Keys.RECEIVE_TREE]
         )
@@ -49,17 +49,16 @@ class AppSettingsRepository(private val context: Context) {
         context.dataStore.edit { p -> if (p[Keys.DEVICE_ID].isNullOrBlank()) p[Keys.DEVICE_ID] = settings.deviceId }
     }
 
-    suspend fun updateConnection(host: String, port: Int, code: String) {
+    suspend fun updateConnection(host: String, port: Int) {
         context.dataStore.edit {
             it[Keys.PC_HOST] = host
             it[Keys.PC_PORT] = port
-            it[Keys.PAIRING_CODE] = code
         }
     }
 
-    suspend fun updatePairingCode(code: String) {
+    suspend fun updateLocalPort(port: Int) {
         context.dataStore.edit {
-            it[Keys.PAIRING_CODE] = code
+            it[Keys.LOCAL_PORT] = port
         }
     }
 
