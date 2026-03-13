@@ -40,11 +40,13 @@ The shared transport model is:
 - AES-GCM encrypted file chunks
 
 ## Screenshots
-[HyperDrop Android screen](Assest/Screenshot/Phone_Screen.jpg)
 
----
+## Screenshots
 
-[HyperDrop desktop screen](Assest/Screenshot/Desktop_Screen.png)
+| Android | Desktop |
+|--------|--------|
+| <img src="Assets/Screenshot/Phone_Screen.png" width="400"/> | <img src="Assets/Screenshot/Desktop_Screen.png" width="400"/> |
+
 
 ## Current product behavior
 
