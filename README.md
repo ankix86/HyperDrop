@@ -41,12 +41,9 @@ The shared transport model is:
 
 ## Screenshots
 
-## Screenshots
-
 | Android | Desktop |
 |--------|--------|
-| <img src="Assets/Screenshot/Phone_Screen.png" width="400"/> | <img src="Assets/Screenshot/Desktop_Screen.png" width="400"/> |
-
+| ![HyperDrop Android](Assets/Screenshot/Phone_Screen.jpg) | ![HyperDrop Desktop](Assets/Screenshot/Desktop_Screen.png) |
 
 ## Current product behavior
 
