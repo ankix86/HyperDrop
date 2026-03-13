@@ -39,12 +39,6 @@ The shared transport model is:
 - per-session X25519 key agreement
 - AES-GCM encrypted file chunks
 
-## Screenshots
-
-| Android | Desktop |
-|--------|--------|
-| ![HyperDrop Android](Assets/Screenshot/Phone_Screen.png) | ![HyperDrop Desktop](Assets/Screenshot/Desktop_Screen.png) |
-
 ## Current product behavior
 
 HyperDrop currently works with a selection-first flow.
