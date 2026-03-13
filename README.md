@@ -43,7 +43,7 @@ The shared transport model is:
 
 | Android | Desktop |
 |--------|--------|
-| ![HyperDrop Android](Assets/Screenshot/Phone_Screen.jpg) | ![HyperDrop Desktop](Assets/Screenshot/Desktop_Screen.png) |
+| ![HyperDrop Android](Assets/Screenshot/Phone_Screen.png) | ![HyperDrop Desktop](Assets/Screenshot/Desktop_Screen.png) |
 
 ## Current product behavior
 
