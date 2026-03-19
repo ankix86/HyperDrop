@@ -8,38 +8,41 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF53EEFF),
-    secondary = Color(0xFFBE4BFF),
-    tertiary = Color(0xFF596BFF),
-    background = Color(0xFF080A24),
-    surface = Color(0xFF12143A),
-    onPrimary = Color(0xFF06122A),
+    primary = Color(0xFF5B9A72),
+    secondary = Color(0xFF6AA883),
+    tertiary = Color(0xFFC79352),
+    background = Color(0xFFF2F3F5),
+    surface = Color(0xFFFFFFFF),
+    onPrimary = Color(0xFFFFFFFF),
     onSecondary = Color(0xFFFFFFFF),
-    onBackground = Color(0xFFEFF0FF),
-    onSurface = Color(0xFFEFF0FF),
-    surfaceVariant = Color(0xFF1E2253),
-    onSurfaceVariant = Color(0xFFC7CCFF),
-    outlineVariant = Color(0xFF374187)
+    onBackground = Color(0xFF2E3338),
+    onSurface = Color(0xFF2E3338),
+    surfaceVariant = Color(0xFFEBEDEF),
+    onSurfaceVariant = Color(0xFF5B616A),
+    outlineVariant = Color(0xFFD4D7DC)
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF53EEFF),
-    secondary = Color(0xFFD96BFF),
-    tertiary = Color(0xFF7387FF),
-    background = Color(0xFF06071C),
-    surface = Color(0xFF101336),
-    onPrimary = Color(0xFF06122A),
+    primary = Color(0xFF5CAD73),
+    secondary = Color(0xFF8DC7A0),
+    tertiary = Color(0xFFD1A35C),
+    background = Color(0xFF1E1F22),
+    surface = Color(0xFF313338),
+    onPrimary = Color(0xFFFFFFFF),
     onSecondary = Color(0xFFFFFFFF),
-    onBackground = Color(0xFFEFF0FF),
-    onSurface = Color(0xFFEFF0FF),
-    surfaceVariant = Color(0xFF1A1F49),
-    onSurfaceVariant = Color(0xFFB8BEF9),
-    outlineVariant = Color(0xFF333C78)
+    onBackground = Color(0xFFF2F3F5),
+    onSurface = Color(0xFFF2F3F5),
+    surfaceVariant = Color(0xFF232428),
+    onSurfaceVariant = Color(0xFFB5BAC1),
+    outlineVariant = Color(0xFF404249)
 )
 
 @Composable
-fun HyperDropTheme(content: @Composable () -> Unit) {
-    val scheme = if (isSystemInDarkTheme()) DarkColors else LightColors
+fun HyperDropTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    val scheme = if (darkTheme) DarkColors else LightColors
     MaterialTheme(
         colorScheme = scheme,
         typography = MaterialTheme.typography,

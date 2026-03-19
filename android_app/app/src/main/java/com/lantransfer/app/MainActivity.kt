@@ -9,10 +9,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lantransfer.app.ui.HyperDropTheme
 import com.lantransfer.app.ui.IncomingShareBus
 import com.lantransfer.app.ui.MainScreen
+import com.lantransfer.app.ui.MainViewModel
 
 class MainActivity : ComponentActivity() {
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
@@ -23,7 +28,14 @@ class MainActivity : ComponentActivity() {
         requestRuntimePermissions()
         pendingSharedUris = extractIncomingShare(intent)
         setContent {
-            HyperDropTheme {
+            val viewModel: MainViewModel = viewModel()
+            val settings by viewModel.settings.collectAsState()
+            val isDark = when (settings.themePreference) {
+                "light" -> false
+                "dark" -> true
+                else -> isSystemInDarkTheme()
+            }
+            HyperDropTheme(darkTheme = isDark) {
                 MainScreen()
             }
         }

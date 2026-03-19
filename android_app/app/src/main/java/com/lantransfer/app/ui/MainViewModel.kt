@@ -154,7 +154,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val isServiceRunning = TransferServiceBus.isServiceRunning
 
     private val _settings = MutableStateFlow(
-        AppSettings("", "", "", 54545, 54545, false, null)
+        AppSettings("", "", "", 54545, 54545, false, null, "system")
     )
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
@@ -334,6 +334,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             settingsRepo.updateConnection(peer.ip, peer.port)
             push("Connected target: ${peer.deviceName} (${peer.ip}:${peer.port})")
+        }
+    }
+
+    fun setThemePreference(theme: String) {
+        viewModelScope.launch {
+            settingsRepo.setThemePreference(theme)
         }
     }
 

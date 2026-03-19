@@ -23,6 +23,7 @@ class AppConfig:
     max_batch_size: int = 0
     alias: str = ""
     quick_save_mode: int = 0
+    theme_preference: str = "system"
     favorites: list[str] = field(default_factory=list)
     trusted_devices: dict[str, DeviceRecord] = field(default_factory=dict)
 
@@ -51,6 +52,7 @@ class AppConfig:
             max_batch_size=int(data.get("max_batch_size", 0)),
             alias=data.get("alias", ""),
             quick_save_mode=int(data.get("quick_save_mode", 0)),
+            theme_preference=data.get("theme_preference", "system"),
             favorites=list(data.get("favorites", [])),
             trusted_devices=trusted,
         )

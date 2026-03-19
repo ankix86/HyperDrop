@@ -1,4 +1,4 @@
-﻿import QtQuick
+import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
@@ -10,7 +10,9 @@ ApplicationWindow {
     minimumHeight: 700
     visible: true
     title: "HyperDrop"
-    color: "#070b1d"
+    color: appTheme.windowBg
+
+    Theme { id: appTheme }
 
     property int currentTab: 0
     readonly property int receiveStatusTabIndex: 3
@@ -24,40 +26,40 @@ ApplicationWindow {
     readonly property int motionFast: 140
     readonly property int motionMed: 220
     readonly property int motionSlow: 280
-    readonly property color textPrimary: "#edf2ff"
-    readonly property color textSecondary: "#b6c5f8"
-    readonly property color textMuted: "#93a6e5"
-    readonly property color buttonBase: "#18255c"
-    readonly property color buttonHover: "#23357c"
-    readonly property color buttonPressed: "#141f4f"
-    readonly property color buttonText: "#ecf2ff"
-    readonly property color cardSurface: "#0f1438"
-    readonly property color cardBorder: "#27418f"
-    readonly property color wavePurple: "#7752ff"
-    readonly property color waveBlue: "#4f74ff"
-    readonly property color waveCyan: "#5eb4ff"
+    readonly property color textPrimary: appTheme.textPrimary
+    readonly property color textSecondary: appTheme.textSecondary
+    readonly property color textMuted: appTheme.textMuted
+    readonly property color buttonBase: appTheme.buttonBase
+    readonly property color buttonHover: appTheme.buttonHover
+    readonly property color buttonPressed: appTheme.buttonPressed
+    readonly property color buttonText: appTheme.buttonText
+    readonly property color cardSurface: appTheme.cardSurface
+    readonly property color cardBorder: appTheme.cardBorder
+    readonly property color wavePurple: appTheme.accentPurple
+    readonly property color waveBlue: appTheme.accentBlue
+    readonly property color waveCyan: appTheme.accentCyan
     readonly property bool compactLayout: width < 1320
     readonly property bool settingsNarrow: width < 1180
     readonly property int contentTopInset: 86
     readonly property var tabs: [
-        { label: "Receive", accent: "#58e7ff", iconSource: "../../../assets/icons/tab-activity.png" },
-        { label: "Send", accent: "#b45cff", iconSource: "../../../assets/icons/tab-send.png" },
-        { label: "Setting", accent: "#6a84ff", iconSource: "../../../assets/icons/tab-control.png" }
+        { label: "Receive", accent: appTheme.tabReceive, iconSource: appTheme.isDark ? "../../../assets/icons/tab-activity-dark.svg" : "../../../assets/icons/tab-activity-light.svg" },
+        { label: "Send", accent: appTheme.tabSend, iconSource: appTheme.isDark ? "../../../assets/icons/tab-send-dark.svg" : "../../../assets/icons/tab-send-light.svg" },
+        { label: "Setting", accent: appTheme.tabSettings, iconSource: appTheme.isDark ? "../../../assets/icons/tab-control-dark.svg" : "../../../assets/icons/tab-control-light.svg" }
     ]
 
     function statusColor(level) {
-        if (level === "error") return "#ff6b9d"
-        if (level === "success") return "#58e7ff"
-        if (level === "warn") return "#ffb255"
-        return "#b9c6ff"
+        if (level === "error") return appTheme.statusError
+        if (level === "success") return appTheme.statusSuccess
+        if (level === "warn") return appTheme.statusWarn
+        return appTheme.textMuted
     }
 
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#070b1d" }
-            GradientStop { position: 0.55; color: "#0a1140" }
-            GradientStop { position: 1.0; color: "#09112b" }
+            GradientStop { position: 0.0; color: appTheme.sceneTintTop }
+            GradientStop { position: 0.55; color: appTheme.sceneTintMid }
+            GradientStop { position: 1.0; color: appTheme.sceneTintBottom }
         }
     }
     
@@ -74,8 +76,8 @@ ApplicationWindow {
             radius: 280
             x: -220
             y: 260
-            color: "#7a54ff"
-            opacity: 0.09
+            color: appTheme.glowPrimary
+            opacity: appTheme.isDark ? 0.16 : 0.24
 
             SequentialAnimation on x {
                 loops: Animation.Infinite
@@ -91,8 +93,8 @@ ApplicationWindow {
             radius: 230
             x: window.width - 210
             y: -120
-            color: "#5f9dff"
-            opacity: 0.08
+            color: appTheme.glowSecondary
+            opacity: appTheme.isDark ? 0.14 : 0.22
 
             SequentialAnimation on y {
                 loops: Animation.Infinite
@@ -173,7 +175,7 @@ ApplicationWindow {
                         ctx.lineTo(width - 3, height - 3)
                         ctx.lineTo(3, height - 3)
                         ctx.closePath()
-                        ctx.strokeStyle = "rgba(121, 170, 255, 0.64)"
+                        ctx.strokeStyle = appTheme.outlineSoft
                         ctx.lineWidth = 2.6
                         ctx.stroke()
                     }
@@ -188,7 +190,7 @@ ApplicationWindow {
                     height: parent.height * 0.66
                     color: "transparent"
                     border.width: 2.6
-                    border.color: "#7baeffa3"
+                    border.color: appTheme.outlineSoft
                     rotation: 45
                 }
             }
@@ -201,13 +203,13 @@ ApplicationWindow {
                         anchors.centerIn: parent
                         width: 2.6
                         height: parent.height * 0.74
-                        color: "#8d9dffa3"
+                        color: appTheme.outlineSoft
                     }
                     Rectangle {
                         anchors.centerIn: parent
                         width: parent.width * 0.74
                         height: 2.6
-                        color: "#8d9dffa3"
+                        color: appTheme.outlineSoft
                     }
                 }
             }
@@ -221,7 +223,7 @@ ApplicationWindow {
                     radius: width / 2
                     color: "transparent"
                     border.width: 2.6
-                    border.color: "#76a8ff9a"
+                    border.color: appTheme.outlineSoft
                 }
             }
         }
@@ -231,10 +233,10 @@ ApplicationWindow {
             anchors.fill: parent
             gradient: Gradient {
                 orientation: Gradient.Vertical
-                GradientStop { position: 0.0; color: "#18050b24" }
-                GradientStop { position: 0.35; color: "#050a2400" }
-                GradientStop { position: 0.72; color: "#050a2400" }
-                GradientStop { position: 1.0; color: "#1d050b24" }
+                GradientStop { position: 0.0; color: appTheme.vignette }
+                GradientStop { position: 0.35; color: "transparent" }
+                GradientStop { position: 0.72; color: "transparent" }
+                GradientStop { position: 1.0; color: appTheme.vignette }
             }
         }
 
@@ -249,14 +251,14 @@ ApplicationWindow {
         Rectangle {
             Layout.fillHeight: true
             Layout.preferredWidth: 220
-            color: "#0a0e28"
+            color: appTheme.sidebarBg
             border.width: 0
             
             Rectangle { 
                 anchors.right: parent.right
                 width: 1
                 height: parent.height
-                color: "#1a255c"
+                color: appTheme.sidebarBorder
             }
 
             ColumnLayout {
@@ -287,7 +289,7 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 54
                             radius: 14
-                            color: selectedState ? "#1e285a" : "transparent"
+                            color: selectedState ? appTheme.buttonPressed : "transparent"
                              
                             Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -369,7 +371,7 @@ ApplicationWindow {
         z: 49
         visible: backend.outgoingTransferRequestVisible && !backend.incomingTransferVisible
         enabled: visible
-        color: "#a3030916"
+        color: appTheme.overlayBg
 
         MouseArea {
             anchors.fill: parent
@@ -383,17 +385,17 @@ ApplicationWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             radius: 30
-            color: "#08102a"
+            color: appTheme.cardSurface
             border.width: 1
-            border.color: "#26439b"
+            border.color: appTheme.cardBorder
 
             Rectangle {
                 anchors.fill: parent
                 radius: parent.radius
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#10194d" }
-                    GradientStop { position: 0.35; color: "#091233" }
-                    GradientStop { position: 1.0; color: "#060c20" }
+                    GradientStop { position: 0.0; color: appTheme.elevatedSurface }
+                    GradientStop { position: 0.35; color: appTheme.cardSurface }
+                    GradientStop { position: 1.0; color: appTheme.insetSurface }
                 }
             }
 
@@ -406,9 +408,9 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 104
                     radius: 18
-                    color: "#3f4a66"
+                    color: appTheme.itemBg
                     border.width: 1
-                    border.color: "#566590"
+                    border.color: appTheme.itemBorder
 
                     RowLayout {
                         anchors.fill: parent
@@ -419,12 +421,12 @@ ApplicationWindow {
                             width: 44
                             height: 44
                             radius: 22
-                            color: "#90b6ff"
+                            color: appTheme.avatarBg
 
                             Text {
                                 anchors.centerIn: parent
                                 text: "S"
-                                color: "#0b1638"
+                                color: appTheme.avatarText
                                 font.pixelSize: 18
                                 font.bold: true
                             }
@@ -449,14 +451,14 @@ ApplicationWindow {
 
                                 Rectangle {
                                     radius: 12
-                                    color: "#6b7593"
+                                    color: appTheme.badgeBg
                                     implicitWidth: 88
                                     implicitHeight: 26
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: "PC"
-                                        color: "#e4ecff"
+                                        color: appTheme.badgeText
                                         font.pixelSize: 12
                                         font.bold: true
                                     }
@@ -479,9 +481,9 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 104
                     radius: 18
-                    color: "#3f4a66"
+                    color: appTheme.itemBg
                     border.width: 1
-                    border.color: "#566590"
+                    border.color: appTheme.itemBorder
 
                     RowLayout {
                         anchors.fill: parent
@@ -492,12 +494,12 @@ ApplicationWindow {
                             width: 44
                             height: 44
                             radius: 22
-                            color: "#90b6ff"
+                            color: appTheme.avatarBg
 
                             Text {
                                 anchors.centerIn: parent
                                 text: "R"
-                                color: "#0b1638"
+                                color: appTheme.avatarText
                                 font.pixelSize: 18
                                 font.bold: true
                             }
@@ -522,14 +524,14 @@ ApplicationWindow {
 
                                 Rectangle {
                                     radius: 12
-                                    color: "#6b7593"
+                                    color: appTheme.badgeBg
                                     implicitWidth: 112
                                     implicitHeight: 26
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: "Receiver"
-                                        color: "#e4ecff"
+                                        color: appTheme.badgeText
                                         font.pixelSize: 12
                                         font.bold: true
                                     }
@@ -544,7 +546,7 @@ ApplicationWindow {
                 Text {
                     Layout.fillWidth: true
                     text: backend.outgoingTransferRequestMessage
-                    color: "#f0f4ff"
+                    color: appTheme.textPrimary
                     horizontalAlignment: Text.AlignHCenter
                     font.pixelSize: 27
                     font.bold: true
@@ -568,7 +570,7 @@ ApplicationWindow {
     component IncomingTransferPage: Item {
         Rectangle {
             anchors.fill: parent
-            color: "#060d25"
+            color: appTheme.isDark ? appTheme.windowBg : "transparent"
         }
 
         ColumnLayout {
@@ -590,12 +592,12 @@ ApplicationWindow {
                     text: backend.incomingTransferSenderClosed
                           ? "Sender closed the session"
                           : "Incoming transfer request"
-                    color: "#9ab1ea"
+                    color: appTheme.textSecondary
                     font.pixelSize: 16
                 }
                 Text {
                     text: "Save to folder: " + backend.incomingTransferTargetDir
-                    color: "#9ab1ea"
+                    color: appTheme.textSecondary
                     font.pixelSize: 16
                     elide: Text.ElideMiddle
                     maximumLineCount: 1
@@ -607,9 +609,9 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: 16
-                color: "#0b1335"
+                color: appTheme.cardSurface
                 border.width: 1
-                border.color: "#1e3173"
+                border.color: appTheme.cardBorder
                 clip: true
 
                 Item {
@@ -628,9 +630,9 @@ ApplicationWindow {
                             width: ListView.view.width
                             height: modelData.editable && modelData.selected && !backend.incomingTransferSenderClosed ? 108 : 74
                             radius: 14
-                            color: "#1a2447"
+                            color: modelData.selected || !modelData.selectable ? appTheme.itemSelectedBg : appTheme.itemBg
                             border.width: 1
-                            border.color: modelData.selected || !modelData.selectable ? "#2f4ca0" : "#2a3f84"
+                            border.color: modelData.selected || !modelData.selectable ? appTheme.itemSelectedBorder : appTheme.itemBorder
                             opacity: modelData.selected || !modelData.selectable ? 1.0 : 0.72
 
                             ColumnLayout {
@@ -646,15 +648,15 @@ ApplicationWindow {
                                         width: 42
                                         height: 42
                                         radius: 11
-                                        color: "#5f6f94"
+                                        color: appTheme.buttonBase
 
                                         Image {
                                             anchors.centerIn: parent
                                             width: 18
                                             height: 18
-                                            source: modelData.isDirectory
-                                                ? "../../../assets/icons/folder-placeholder.svg"
-                                                : "../../../assets/icons/file-placeholder.svg"
+                                            source: appTheme.isDark
+                                                ? "../../../assets/icons/folder-placeholder-dark.svg"
+                                                : "../../../assets/icons/folder-placeholder-light.svg"
                                             fillMode: Image.PreserveAspectFit
                                             smooth: true
                                         }
@@ -676,7 +678,7 @@ ApplicationWindow {
 
                                         Text {
                                             text: modelData.parentPath ? modelData.parentPath + " • " + modelData.sizeText : modelData.sizeText
-                                            color: "#bfcff5"
+                                            color: appTheme.textSecondary
                                             font.pixelSize: 13
                                             elide: Text.ElideRight
                                             maximumLineCount: 1
@@ -686,9 +688,9 @@ ApplicationWindow {
 
                                     Rectangle {
                                         radius: 12
-                                        color: modelData.isDirectory ? "#202a57" : "#10283d"
+                                        color: appTheme.badgeBg
                                         border.width: 1
-                                        border.color: modelData.isDirectory ? "#404f94" : "#245b7e"
+                                        border.color: appTheme.itemBorder
                                         implicitWidth: typeBadge.implicitWidth + 22
                                         implicitHeight: 30
 
@@ -696,7 +698,7 @@ ApplicationWindow {
                                             id: typeBadge
                                             anchors.centerIn: parent
                                             text: modelData.isDirectory ? "Folder" : "File"
-                                            color: modelData.isDirectory ? "#d8e2ff" : "#73eeff"
+                                            color: modelData.isDirectory ? appTheme.badgeText : appTheme.accentBlue
                                             font.pixelSize: 11
                                             font.bold: true
                                         }
@@ -706,9 +708,9 @@ ApplicationWindow {
                                         width: 30
                                         height: 30
                                         radius: 9
-                                        color: modelData.selected ? "#153c57" : "#0a1227"
+                                        color: modelData.selected ? appTheme.itemSelectedBg : appTheme.insetSurface
                                         border.width: 1
-                                        border.color: modelData.selected ? "#58e7ff" : "#2b4078"
+                                        border.color: modelData.selected ? appTheme.itemSelectedBorder : appTheme.itemBorder
                                         visible: modelData.selectable && !backend.incomingTransferSenderClosed
 
                                         Image {
@@ -716,7 +718,9 @@ ApplicationWindow {
                                             width: 14
                                             height: 14
                                             visible: modelData.selected
-                                            source: "../../../assets/icons/checkmark.svg"
+                                            source: appTheme.isDark
+                                                ? "../../../assets/icons/checkmark-dark.svg"
+                                                : "../../../assets/icons/checkmark-light.svg"
                                             fillMode: Image.PreserveAspectFit
                                             smooth: true
                                         }
@@ -741,7 +745,7 @@ ApplicationWindow {
 
                                         Text {
                                             text: "Receive as"
-                                            color: "#adc1ff"
+                                            color: appTheme.textSecondary
                                             font.pixelSize: 11
                                             font.bold: true
                                         }
@@ -750,9 +754,9 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             Layout.preferredHeight: 42
                                             radius: 14
-                                            color: "#0a122c"
+                                            color: appTheme.fieldBg
                                             border.width: 1
-                                            border.color: renameField.activeFocus ? "#58e7ff" : "#203d89"
+                                            border.color: renameField.activeFocus ? appTheme.fieldFocus : appTheme.fieldBorder
 
                                             TextField {
                                                 id: renameField
@@ -760,7 +764,7 @@ ApplicationWindow {
                                                 anchors.margins: 3
                                                 anchors.leftMargin: 12
                                                 text: modelData.proposedName
-                                                color: "#edf2ff"
+                                                color: appTheme.textPrimary
                                                 font.pixelSize: 13
                                                 background: null
                                                 selectByMouse: true
@@ -780,9 +784,9 @@ ApplicationWindow {
                 Layout.preferredHeight: 188
                 Layout.minimumHeight: 188
                 radius: 16
-                color: "#111a2f"
+                color: appTheme.panelBg
                 border.width: 1
-                border.color: "#203057"
+                border.color: appTheme.panelBorder
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -800,27 +804,27 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         height: 10
                         radius: 5
-                        color: "#354462"
+                        color: appTheme.progressBg
                         clip: true
 
                         Rectangle {
                             width: parent.width * (backend.incomingTransferCanAccept ? 1.0 : 0.0)
                             height: parent.height
                             radius: 5
-                            color: "#a7ccff"
+                            color: appTheme.accentBlue
                         }
                     }
 
                     Text {
                         text: backend.incomingTransferSummary
-                        color: "#d9e6ff"
+                        color: appTheme.textSecondary
                         font.pixelSize: 13
                     }
                     Text {
                         text: backend.incomingTransferSenderClosed
                               ? "Nothing will be received from this request."
                               : "The sender waits until you accept. Nothing is written until you confirm."
-                        color: "#d9e6ff"
+                        color: appTheme.textSecondary
                         font.pixelSize: 13
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
@@ -896,9 +900,9 @@ ApplicationWindow {
                 Layout.preferredHeight: 0
                 visible: false
                 radius: 24
-                color: "#0b1232"
+                color: appTheme.cardSurface
                 border.width: 1
-                border.color: "#2a438f"
+                border.color: appTheme.cardBorder
                 clip: true
 
                 ColumnLayout {
@@ -914,14 +918,14 @@ ApplicationWindow {
                     }
                     Text {
                         text: "Save to folder: " + backend.receiveSessionTargetDir
-                        color: "#9bb2e9"
+                        color: appTheme.textSecondary
                         font.pixelSize: 13
                         elide: Text.ElideMiddle
                         Layout.fillWidth: true
                     }
                     Text {
                         text: backend.receiveSessionSummary
-                        color: "#66ecff"
+                        color: appTheme.accentBlue
                         font.pixelSize: 13
                         font.bold: true
                     }
@@ -937,9 +941,9 @@ ApplicationWindow {
                             width: ListView.view.width
                             height: 56
                             radius: 14
-                            color: "#131d47"
+                            color: modelData.done ? appTheme.itemSelectedBg : appTheme.itemBg
                             border.width: 1
-                            border.color: "#27418f"
+                            border.color: modelData.done ? appTheme.itemSelectedBorder : appTheme.itemBorder
 
                             RowLayout {
                                 anchors.fill: parent
@@ -960,7 +964,7 @@ ApplicationWindow {
                                     }
                                     Text {
                                         text: modelData.statusText + " â€¢ " + modelData.sizeText
-                                        color: modelData.done ? "#70f0ff" : "#95a9e0"
+                                        color: modelData.done ? appTheme.accentBlue : appTheme.textSecondary
                                         font.pixelSize: 12
                                         elide: Text.ElideRight
                                         maximumLineCount: 1
@@ -983,15 +987,15 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         height: 10
                         radius: 5
-                        color: "#0a1028"
+                        color: appTheme.progressBg
                         clip: true
                         Rectangle {
                             width: parent.width * backend.receiveSessionProgress
                             height: parent.height
                             radius: 5
                             gradient: Gradient {
-                                GradientStop { position: 0.0; color: "#8fc0ff" }
-                                GradientStop { position: 1.0; color: "#66ecff" }
+                                GradientStop { position: 0.0; color: appTheme.primaryButtonHover }
+                                GradientStop { position: 1.0; color: appTheme.accentBlue }
                             }
                         }
                     }
@@ -1011,12 +1015,12 @@ ApplicationWindow {
                     radius: 70
                     color: "transparent"
                     border.width: 4
-                    border.color: "#58e7ff"
+                    border.color: appTheme.accentBlue
                     
                     Rectangle {
                         anchors.centerIn: parent
                         width: 80; height: 80; radius: 40
-                        color: "#58e7ff"
+                        color: appTheme.accentBlue
                     }
 
                     SequentialAnimation on scale {
@@ -1048,15 +1052,17 @@ ApplicationWindow {
                         width: 40
                         height: 40
                         radius: 20
-                        color: "#13204c"
+                        color: appTheme.buttonBase
                         border.width: 1
-                        border.color: "#3150a8"
+                        border.color: appTheme.itemSelectedBorder
 
                         Image {
                             anchors.centerIn: parent
                             width: 18
                             height: 18
-                            source: "../../../assets/icons/edit-pencil.svg"
+                            source: appTheme.isDark
+                                ? "../../../assets/icons/edit-pencil-dark.svg"
+                                : "../../../assets/icons/edit-pencil-light.svg"
                             fillMode: Image.PreserveAspectFit
                             smooth: true
                         }
@@ -1081,9 +1087,9 @@ ApplicationWindow {
                             width: 340
                             height: 52
                             radius: 18
-                            color: "#0b1235"
+                            color: appTheme.fieldBg
                             border.width: 1
-                            border.color: "#3150a8"
+                            border.color: appTheme.fieldBorder
 
                             TextField {
                                 anchors.fill: parent
@@ -1142,9 +1148,9 @@ ApplicationWindow {
                     width: 210
                     height: 50
                     radius: 25
-                    color: backend.serverRunning ? "#1a2c5a" : "#0f1438"
+                    color: backend.serverRunning ? appTheme.itemSelectedBg : appTheme.ghostButton
                     border.width: 1
-                    border.color: backend.serverRunning ? "#58e7ff" : "#27418f"
+                    border.color: backend.serverRunning ? appTheme.itemSelectedBorder : appTheme.fieldBorder
 
                     RowLayout {
                         anchors.fill: parent
@@ -1152,7 +1158,7 @@ ApplicationWindow {
                         spacing: 8
                         Text {
                             text: "Online"
-                            color: backend.serverRunning ? "#58e7ff" : window.textSecondary
+                            color: backend.serverRunning ? appTheme.accentBlue : window.textSecondary
                             font.pixelSize: 13
                             font.bold: true
                             Layout.fillWidth: true
@@ -1161,11 +1167,11 @@ ApplicationWindow {
                             width: 26
                             height: 26
                             radius: 13
-                            color: backend.serverRunning ? "#58e7ff" : "#27418f"
+                            color: backend.serverRunning ? appTheme.accentBlue : appTheme.buttonPressed
                             Text {
                                 anchors.centerIn: parent
                                 text: backend.serverRunning ? "ON" : "OFF"
-                                color: "#000000"
+                                color: backend.serverRunning ? appTheme.primaryButtonText : appTheme.textPrimary
                                 font.pixelSize: 10
                                 font.bold: true
                             }
@@ -1297,9 +1303,9 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             radius: 22
-                            color: selectionCard.dragActive ? "#163064" : "#0f173c"
+                            color: selectionCard.dragActive ? appTheme.itemSelectedBg : appTheme.panelBg
                             border.width: 1
-                            border.color: selectionCard.dragActive ? "#78f0ff" : "#29457c"
+                            border.color: selectionCard.dragActive ? appTheme.itemSelectedBorder : appTheme.panelBorder
                             clip: true
                             scale: selectionCard.dragActive ? 1.01 : 1.0
 
@@ -1310,11 +1316,11 @@ ApplicationWindow {
                                 anchors.fill: parent
                                 radius: parent.radius
                                 gradient: Gradient {
-                                    GradientStop { position: 0.0; color: selectionCard.dragActive ? "#1f3c73" : "#13214f" }
-                                    GradientStop { position: 1.0; color: "#0b1230" }
+                                    GradientStop { position: 0.0; color: selectionCard.dragActive ? appTheme.itemSelectedBg : appTheme.cardSurface }
+                                    GradientStop { position: 1.0; color: appTheme.insetSurface }
                                 }
                                 opacity: 0.82
-                            }
+                            }
 
                             Text {
                                 anchors.top: parent.top
@@ -1323,7 +1329,7 @@ ApplicationWindow {
                                 anchors.rightMargin: 18
                                 visible: selectionCard.hasSelection || selectionCard.dragActive
                                 text: selectionCard.dragActive ? "Drop to add" : (selectionCard.hasSelection ? "Click Edit to manage all" : "Ready for your first files")
-                                color: selectionCard.dragActive ? "#dff9ff" : window.textMuted
+                                color: selectionCard.dragActive ? appTheme.textPrimary : window.textMuted
                                 font.pixelSize: 12
                                 font.bold: true
                             }
@@ -1340,7 +1346,7 @@ ApplicationWindow {
                                 SelectionDropGlyph {
                                     Layout.alignment: Qt.AlignHCenter
                                     compact: true
-                                    accent: selectionCard.dragActive ? "#8bf5ff" : "#72dfff"
+                                    accent: selectionCard.dragActive ? appTheme.accentBlue : appTheme.textSecondary
                                 }
 
                                 Text {
@@ -1442,7 +1448,7 @@ ApplicationWindow {
                             text: hasAvailableDevices
                                 ? discoveredDeviceCount + " online"
                                 : "Searching for Devices"
-                            color: hasAvailableDevices ? "#78f0ff" : window.textSecondary
+                            color: hasAvailableDevices ? appTheme.accentBlue : window.textSecondary
                             font.pixelSize: 14
                             font.bold: true
                         }
@@ -1460,22 +1466,24 @@ ApplicationWindow {
                         clip: true; spacing: 12
                         model: backend.devices
                         delegate: Rectangle {
-                            width: deviceList.width; height: 72; radius: 18; color: "#161c4a"; border.width: 1; border.color: "#243b7f"
+                            width: deviceList.width; height: 72; radius: 18; color: appTheme.itemBg; border.width: 1; border.color: appTheme.itemBorder
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 14; spacing: 16
                                 Rectangle {
                                     width: 44
                                     height: 44
                                     radius: 22
-                                    color: "#1c2a6a"
+                                    color: appTheme.buttonBase
                                     border.width: 1
-                                    border.color: "#3d5afe"
+                                    border.color: appTheme.itemSelectedBorder
 
                                     Image {
                                         anchors.centerIn: parent
                                         width: 20
                                         height: 20
-                                        source: "../../../assets/icons/device-placeholder.svg"
+                                        source: appTheme.isDark
+                                            ? "../../../assets/icons/device-placeholder-dark.svg"
+                                            : "../../../assets/icons/device-placeholder-light.svg"
                                         fillMode: Image.PreserveAspectFit
                                         smooth: true
                                     }
@@ -1509,18 +1517,18 @@ ApplicationWindow {
                     Layout.bottomMargin: 40
                     height: 208
                     radius: window.radiusLg
-                    color: "#0f163f"
+                    color: appTheme.cardSurface
                     border.width: 1
-                    border.color: "#27429a"
+                    border.color: appTheme.cardBorder
                     clip: true
                     visible: false
 
                     Rectangle {
                         anchors.fill: parent
                         gradient: Gradient {
-                            GradientStop { position: 0.0; color: "#16215b" }
-                            GradientStop { position: 0.58; color: "#101743" }
-                            GradientStop { position: 1.0; color: "#0c1234" }
+                            GradientStop { position: 0.0; color: appTheme.elevatedSurface }
+                            GradientStop { position: 0.58; color: appTheme.cardSurface }
+                            GradientStop { position: 1.0; color: appTheme.insetSurface }
                         }
                     }
 
@@ -1530,7 +1538,7 @@ ApplicationWindow {
                         radius: 130
                         x: -150
                         y: 56
-                        color: "#5a53ff"
+                        color: appTheme.glowPrimary
                         opacity: 0.06
                     }
 
@@ -1557,16 +1565,16 @@ ApplicationWindow {
                                         width: 58
                                         height: 58
                                         radius: 29
-                                        color: "#121f57"
+                                        color: appTheme.itemSelectedBg
                                         border.width: 1
-                                        border.color: "#3553bf"
+                                        border.color: appTheme.itemSelectedBorder
 
                                         Rectangle {
                                             anchors.centerIn: parent
                                             width: 28
                                             height: 28
                                             radius: 14
-                                            color: "#60ebff"
+                                            color: appTheme.accentBlue
                                             opacity: 0.2
                                         }
 
@@ -1575,7 +1583,7 @@ ApplicationWindow {
                                             width: 12
                                             height: 12
                                             radius: 6
-                                            color: "#73efff"
+                                            color: appTheme.accentBlue
                                         }
                                     }
 
@@ -1592,7 +1600,7 @@ ApplicationWindow {
 
                                         Text {
                                             text: backend.transferFileName || "Preparing transfer..."
-                                            color: "#e6efff"
+                                            color: appTheme.textPrimary
                                             font.pixelSize: 16
                                             font.bold: true
                                             elide: Text.ElideMiddle
@@ -1602,7 +1610,7 @@ ApplicationWindow {
 
                                         Text {
                                             text: "Encrypted file stream over your local network"
-                                            color: "#92a7e6"
+                                            color: appTheme.textSecondary
                                             font.pixelSize: 12
                                         }
                                     }
@@ -1612,9 +1620,9 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 68
                                     radius: 22
-                                    color: "#0b1230"
+                                    color: appTheme.insetSurface
                                     border.width: 1
-                                    border.color: "#1a2f74"
+                                    border.color: appTheme.panelBorder
 
                                     ColumnLayout {
                                         anchors.fill: parent
@@ -1625,14 +1633,14 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             Text {
                                                 text: "Transfer Progress"
-                                                color: "#adc1ff"
+                                                color: appTheme.textSecondary
                                                 font.pixelSize: 12
                                                 font.bold: true
                                             }
                                             Item { Layout.fillWidth: true }
                                             Text {
                                                 text: (backend.transferProgress * 100).toFixed(1) + "% complete"
-                                                color: "#67efff"
+                                                color: appTheme.accentBlue
                                                 font.pixelSize: 12
                                                 font.bold: true
                                             }
@@ -1642,7 +1650,7 @@ ApplicationWindow {
                                             Layout.fillWidth: true
                                             height: 12
                                             radius: 6
-                                            color: "#071024"
+                                            color: appTheme.progressBg
                                             clip: true
 
                                             Rectangle {
@@ -1650,9 +1658,9 @@ ApplicationWindow {
                                                 height: parent.height
                                                 radius: 6
                                                 gradient: Gradient {
-                                                    GradientStop { position: 0.0; color: "#73f3ff" }
-                                                    GradientStop { position: 0.52; color: "#58cfff" }
-                                                    GradientStop { position: 1.0; color: "#4d74ff" }
+                                                    GradientStop { position: 0.0; color: appTheme.primaryButtonHover }
+                                                    GradientStop { position: 0.52; color: appTheme.primaryButton }
+                                                    GradientStop { position: 1.0; color: appTheme.accentCyan }
                                                 }
                                                 Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
                                             }
@@ -1666,16 +1674,16 @@ ApplicationWindow {
 
                                     Rectangle {
                                         radius: 14
-                                        color: "#10283d"
+                                        color: appTheme.itemBg
                                         border.width: 1
-                                        border.color: "#235e82"
+                                        border.color: appTheme.itemBorder
                                         implicitWidth: 128
                                         implicitHeight: 32
 
                                         Text {
                                             anchors.centerIn: parent
                                             text: "Secured Session"
-                                            color: "#6feeff"
+                                            color: appTheme.textPrimary
                                             font.pixelSize: 12
                                             font.bold: true
                                         }
@@ -1683,16 +1691,16 @@ ApplicationWindow {
 
                                     Rectangle {
                                         radius: 14
-                                        color: "#191d4a"
+                                        color: appTheme.itemSelectedBg
                                         border.width: 1
-                                        border.color: "#343f8f"
+                                        border.color: appTheme.itemSelectedBorder
                                         implicitWidth: 118
                                         implicitHeight: 32
 
                                         Text {
                                             anchors.centerIn: parent
                                             text: "Live Upload"
-                                            color: "#dce5ff"
+                                            color: appTheme.textPrimary
                                             font.pixelSize: 12
                                             font.bold: true
                                         }
@@ -1712,9 +1720,9 @@ ApplicationWindow {
                                 Layout.preferredWidth: 228
                                 Layout.fillHeight: true
                                 radius: 24
-                                color: "#0b1334"
+                                color: appTheme.insetSurface
                                 border.width: 1
-                                border.color: "#213a81"
+                                border.color: appTheme.panelBorder
 
                                 Rectangle {
                                     anchors.horizontalCenter: parent.horizontalCenter
@@ -1723,14 +1731,14 @@ ApplicationWindow {
                                     width: 146
                                     height: 48
                                     radius: 18
-                                    color: "#0e3043"
+                                    color: appTheme.itemSelectedBg
                                     border.width: 1
-                                    border.color: "#2b8aa4"
+                                    border.color: appTheme.itemSelectedBorder
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: (backend.transferProgress * 100).toFixed(1) + "%"
-                                        color: "#74f1ff"
+                                        color: appTheme.textPrimary
                                         font.pixelSize: 26
                                         font.bold: true
                                     }
@@ -1746,7 +1754,7 @@ ApplicationWindow {
                                     Text {
                                         width: parent.width
                                         text: "Transferring"
-                                        color: "#dce6ff"
+                                        color: appTheme.textPrimary
                                         font.pixelSize: 14
                                         font.bold: true
                                         horizontalAlignment: Text.AlignHCenter
@@ -1755,7 +1763,7 @@ ApplicationWindow {
                                     Text {
                                         width: parent.width
                                         text: "Stop the current file and clear the queue."
-                                        color: "#93a7e1"
+                                        color: appTheme.textSecondary
                                         font.pixelSize: 11
                                         horizontalAlignment: Text.AlignHCenter
                                         wrapMode: Text.WordWrap
@@ -1782,7 +1790,7 @@ ApplicationWindow {
             visible: opacity > 0
             enabled: opacity > 0
             opacity: sendPage.selectionManagerOpen ? 1 : 0
-            color: "#a00a1026"
+            color: appTheme.overlayBg
 
             Behavior on opacity {
                 NumberAnimation {
@@ -1800,9 +1808,9 @@ ApplicationWindow {
                 width: Math.min(parent.width - 96, 980)
                 height: Math.min(parent.height - 88, 680)
                 radius: 28
-                color: "#0d1436"
+                color: appTheme.cardSurface
                 border.width: 1
-                border.color: "#28458e"
+                border.color: appTheme.cardBorder
                 clip: true
                 scale: sendPage.selectionManagerOpen ? 1.0 : 0.98
 
@@ -1817,11 +1825,11 @@ ApplicationWindow {
                     anchors.fill: parent
                     radius: parent.radius
                     gradient: Gradient {
-                        GradientStop { position: 0.0; color: "#13214f" }
-                        GradientStop { position: 1.0; color: "#09112b" }
+                        GradientStop { position: 0.0; color: appTheme.elevatedSurface }
+                        GradientStop { position: 1.0; color: appTheme.insetSurface }
                     }
                     opacity: 0.78
-                }
+                }
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -1885,7 +1893,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.fillWidth: true
                         height: 1
-                        color: "#22386f"
+                        color: appTheme.divider
                         opacity: 0.9
                     }
 
@@ -1893,9 +1901,9 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         radius: 22
-                        color: "#0a1230"
+                        color: appTheme.insetSurface
                         border.width: 1
-                        border.color: "#203767"
+                        border.color: appTheme.panelBorder
                         clip: true
 
                         Item {
@@ -1960,9 +1968,9 @@ ApplicationWindow {
                                 width: ListView.view.width
                                 height: 66
                                 radius: 18
-                                color: selectionManagerHover.containsMouse ? "#142652" : "#101c45"
+                                color: selectionManagerHover.containsMouse ? appTheme.itemHoverBg : appTheme.itemBg
                                 border.width: 1
-                                border.color: selectionManagerHover.containsMouse ? "#3f72d7" : "#263f7e"
+                                border.color: selectionManagerHover.containsMouse ? appTheme.itemSelectedBorder : appTheme.itemBorder
 
                                 Behavior on color { ColorAnimation { duration: window.motionFast } }
 
@@ -1999,7 +2007,7 @@ ApplicationWindow {
 
                                     Text {
                                         text: modelData.sizeText
-                                        color: "#d6e5ff"
+                                        color: appTheme.textPrimary
                                         font.pixelSize: 12
                                         font.bold: true
                                         verticalAlignment: Text.AlignVCenter
@@ -2033,7 +2041,7 @@ ApplicationWindow {
 
         Rectangle {
             anchors.fill: parent
-            color: "#060d25"
+            color: appTheme.isDark ? appTheme.windowBg : "transparent"
         }
 
         ColumnLayout {
@@ -2053,7 +2061,7 @@ ApplicationWindow {
                 }
                 Text {
                     text: "Save to folder: " + backend.receiveSessionTargetDir
-                    color: "#9ab1ea"
+                    color: appTheme.textSecondary
                     font.pixelSize: 16
                     elide: Text.ElideMiddle
                     maximumLineCount: 1
@@ -2065,9 +2073,9 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: 16
-                color: "#0b1335"
+                color: appTheme.cardSurface
                 border.width: 1
-                border.color: "#1e3173"
+                border.color: appTheme.cardBorder
                 clip: true
 
                 Item {
@@ -2091,9 +2099,9 @@ ApplicationWindow {
                             width: ListView.view.width
                             height: 74
                             radius: 14
-                            color: "#1a2447"
+                            color: modelData.done ? appTheme.itemSelectedBg : appTheme.itemBg
                             border.width: 1
-                            border.color: "#2a3f84"
+                            border.color: modelData.done ? appTheme.itemSelectedBorder : appTheme.itemBorder
 
                             RowLayout {
                                 anchors.fill: parent
@@ -2104,12 +2112,12 @@ ApplicationWindow {
                                     width: 42
                                     height: 42
                                     radius: 11
-                                    color: "#5f6f94"
+                                    color: appTheme.buttonBase
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: "[]"
-                                        color: "#ebf2ff"
+                                        color: appTheme.textPrimary
                                         font.pixelSize: 14
                                         font.bold: true
                                     }
@@ -2131,7 +2139,7 @@ ApplicationWindow {
 
                                     Text {
                                         text: modelData.statusText
-                                        color: modelData.done ? "#7fd1ff" : "#bfcff5"
+                                        color: modelData.done ? appTheme.accentBlue : appTheme.textMuted
                                         font.pixelSize: 13
                                         elide: Text.ElideRight
                                         maximumLineCount: 1
@@ -2160,7 +2168,7 @@ ApplicationWindow {
                         Text {
                             width: parent.width
                             text: "No files in this session yet."
-                            color: "#c8d8ff"
+                            color: appTheme.textPrimary
                             font.pixelSize: 16
                             horizontalAlignment: Text.AlignHCenter
                         }
@@ -2168,7 +2176,7 @@ ApplicationWindow {
                         Text {
                             width: parent.width
                             text: "Files will appear here when transfer starts."
-                            color: "#8fa3dc"
+                            color: appTheme.textSecondary
                             font.pixelSize: 13
                             horizontalAlignment: Text.AlignHCenter
                         }
@@ -2181,9 +2189,9 @@ ApplicationWindow {
                 Layout.preferredHeight: 228
                 Layout.minimumHeight: 228
                 radius: 16
-                color: "#111a2f"
+                color: appTheme.panelBg
                 border.width: 1
-                border.color: "#203057"
+                border.color: appTheme.panelBorder
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -2201,30 +2209,30 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         height: 10
                         radius: 5
-                        color: "#354462"
+                        color: appTheme.progressBg
                         clip: true
 
                         Rectangle {
                             width: parent.width * backend.receiveSessionProgress
                             height: parent.height
                             radius: 5
-                            color: "#a7ccff"
+                            color: appTheme.accentBlue
                         }
                     }
 
                     Text {
                         text: backend.receiveSessionSummary
-                        color: "#d9e6ff"
+                        color: appTheme.textSecondary
                         font.pixelSize: 13
                     }
                     Text {
                         text: backend.receiveSessionSizeLine
-                        color: "#d9e6ff"
+                        color: appTheme.textSecondary
                         font.pixelSize: 13
                     }
                     Text {
                         text: backend.receiveSessionSpeedLine
-                        color: "#d9e6ff"
+                        color: appTheme.textSecondary
                         font.pixelSize: 13
                     }
 
@@ -2306,7 +2314,7 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             visible: backend.portStatusTone === "warn"
                             text: backend.portStatusText
-                            color: "#ffbf47"
+                            color: appTheme.statusWarn
                             font.pixelSize: 13
                             font.bold: true
                             wrapMode: Text.WordWrap
@@ -2317,9 +2325,9 @@ ApplicationWindow {
                             implicitHeight: serverPanelLayout.implicitHeight + 28
                             Layout.preferredHeight: implicitHeight
                             radius: 16
-                            color: "#10152f"
+                            color: appTheme.panelBg
                             border.width: 1
-                            border.color: "#31458f"
+                            border.color: appTheme.panelBorder
 
                             ColumnLayout {
                                 id: serverPanelLayout
@@ -2340,7 +2348,7 @@ ApplicationWindow {
 
                                     Text {
                                         text: backend.serverRunning ? "Online and ready for incoming transfers." : "Offline until you start the server."
-                                        color: backend.serverRunning ? "#98f0bf" : window.textSecondary
+                                        color: backend.serverRunning ? appTheme.statusSuccess : window.textSecondary
                                         font.pixelSize: 12
                                     }
                                 }
@@ -2390,12 +2398,12 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             text: backend.portStatusText
                             color: backend.portStatusTone === "error"
-                                ? "#ff8db5"
+                                ? appTheme.statusError
                                 : backend.portStatusTone === "warn"
-                                    ? "#ffbf47"
+                                    ? appTheme.statusWarn
                                 : backend.portStatusTone === "success"
-                                    ? "#7dffbf"
-                                    : "#b7c8ff"
+                                    ? appTheme.statusSuccess
+                                    : appTheme.textMuted
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap
                             visible: backend.portStatusTone !== "warn"
@@ -2432,7 +2440,7 @@ ApplicationWindow {
                                  Layout.fillWidth: true
                                  spacing: 10
                                  Rectangle {
-                                     Layout.fillWidth: true; Layout.preferredHeight: 46; radius: 14; color: "#09102a"; border.width: 1; border.color: "#31458f"
+                                     Layout.fillWidth: true; Layout.preferredHeight: 46; radius: 14; color: appTheme.panelBg; border.width: 1; border.color: appTheme.panelBorder
                                      Text {
                                          anchors.fill: parent; anchors.leftMargin: 16; verticalAlignment: Text.AlignVCenter
                                          text: backend.receiveDir; color: window.textPrimary; font.pixelSize: 13; elide: Text.ElideMiddle
@@ -2448,6 +2456,67 @@ ApplicationWindow {
                                      NeonButton { text: "Open"; compact: true; onClicked: function() { backend.openReceiveFolder() } }
                                  }
                             }
+                        }
+                    }
+                }
+
+                AdaptiveSectionCard {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 40
+                    Layout.rightMargin: 40
+                    title: "Appearance"
+                    subtitle: "Choose between light and dark visual styles or follow the system setting."
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 16
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 20
+
+                            Repeater {
+                                model: [
+                                    { label: "Light", value: "light" },
+                                    { label: "Dark", value: "dark" },
+                                    { label: "System", value: "system" }
+                                ]
+                                delegate: Rectangle {
+                                    Layout.preferredWidth: 140
+                                    Layout.preferredHeight: 80
+                                    radius: 12
+                                    color: backend.themePreference === modelData.value ? appTheme.buttonHover : appTheme.cardSurface
+                                    border.width: backend.themePreference === modelData.value ? 2 : 1
+                                    border.color: backend.themePreference === modelData.value ? appTheme.accentBlue : appTheme.cardBorder
+
+                                    ColumnLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 8
+                                        Text {
+                                            text: modelData.label
+                                            color: appTheme.textPrimary
+                                            font.bold: backend.themePreference === modelData.value
+                                            Layout.alignment: Qt.AlignHCenter
+                                        }
+                                        Rectangle {
+                                            width: 16
+                                            height: 16
+                                            radius: 8
+                                            color: backend.themePreference === modelData.value ? appTheme.accentBlue : "transparent"
+                                            border.width: 1
+                                            border.color: appTheme.textMuted
+                                            Layout.alignment: Qt.AlignHCenter
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: function() { backend.setThemePreference(modelData.value) }
+                                    }
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
                         }
                     }
                 }
@@ -2560,7 +2629,7 @@ ApplicationWindow {
 
     component SelectionDropGlyph: Item {
         property bool compact: false
-        property color accent: "#72dfff"
+        property color accent: appTheme.accentBlue
         readonly property int glyphSize: compact ? 54 : 72
         width: glyphSize
         height: glyphSize
@@ -2568,7 +2637,7 @@ ApplicationWindow {
         Rectangle {
             anchors.fill: parent
             radius: width / 2
-            color: "#13224b"
+            color: appTheme.cardSurface
             border.width: 1
             border.color: Qt.lighter(accent, 1.08)
             opacity: 0.95
@@ -2580,7 +2649,7 @@ ApplicationWindow {
             radius: 8
             anchors.centerIn: parent
             anchors.verticalCenterOffset: compact ? 1 : 2
-            color: "#102042"
+            color: appTheme.insetSurface
             border.width: 1
             border.color: Qt.lighter(accent, 1.04)
         }
@@ -2592,7 +2661,7 @@ ApplicationWindow {
             x: compact ? 23 : 31
             y: compact ? 15 : 19
             rotation: 45
-            color: "#163063"
+            color: appTheme.itemHoverBg
             border.width: 1
             border.color: Qt.lighter(accent, 1.02)
         }
@@ -2619,9 +2688,9 @@ ApplicationWindow {
             radius: 5
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            color: "#193160"
+            color: appTheme.itemSelectedBg
             border.width: 1
-            border.color: "#5f9dff"
+            border.color: appTheme.itemSelectedBorder
         }
 
         Rectangle {
@@ -2631,9 +2700,9 @@ ApplicationWindow {
             radius: 3
             x: 6
             y: 8
-            color: "#24457f"
+            color: appTheme.avatarBg
             border.width: 1
-            border.color: "#5f9dff"
+            border.color: appTheme.itemSelectedBorder
         }
 
         Rectangle {
@@ -2642,9 +2711,9 @@ ApplicationWindow {
             height: 27
             radius: 6
             anchors.centerIn: parent
-            color: "#172750"
+            color: appTheme.itemBg
             border.width: 1
-            border.color: "#67dfff"
+            border.color: appTheme.itemBorder
         }
 
         Rectangle {
@@ -2654,9 +2723,9 @@ ApplicationWindow {
             x: 19
             y: 6
             rotation: 45
-            color: "#0f1d42"
+            color: appTheme.elevatedSurface
             border.width: 1
-            border.color: "#67dfff"
+            border.color: appTheme.itemBorder
         }
     }
 
@@ -2669,9 +2738,9 @@ ApplicationWindow {
         width: 68
         height: 68
         radius: 18
-        color: placeholder ? "#10193d" : (overflow ? "#1a2a57" : "#13224b")
+        color: placeholder ? appTheme.insetSurface : (overflow ? appTheme.itemSelectedBg : appTheme.cardSurface)
         border.width: 1
-        border.color: placeholder ? "#243869" : (overflow ? "#67dfff" : "#335a98")
+        border.color: placeholder ? appTheme.itemBorder : (overflow ? appTheme.itemSelectedBorder : appTheme.cardBorder)
 
         ColumnLayout {
             anchors.fill: parent
@@ -2694,15 +2763,15 @@ ApplicationWindow {
                 width: 24
                 height: 24
                 radius: 8
-                color: "#172751"
+                color: appTheme.itemBg
                 border.width: 1
-                border.color: "#29457c"
+                border.color: appTheme.itemBorder
             }
 
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 text: placeholder ? "" : (itemData && itemData.kind === "Folder" ? "Folder" : "File")
-                color: "#9eb5ea"
+                color: appTheme.textSecondary
                 font.pixelSize: 10
                 font.bold: true
                 visible: !placeholder
@@ -2726,7 +2795,7 @@ ApplicationWindow {
 
             Text {
                 text: "More"
-                color: "#9eb5ea"
+                color: appTheme.textSecondary
                 font.pixelSize: 10
                 font.bold: true
                 horizontalAlignment: Text.AlignHCenter
@@ -2738,26 +2807,26 @@ ApplicationWindow {
         id: neonButton
         property alias text: buttonLabel.text
         property string role: "secondary"
-        property color accent: "#58e7ff"
+        property color accent: appTheme.accentBlue
         property bool compact: false
         signal clicked
         implicitWidth: compact ? 84 : 154
         implicitHeight: compact ? 38 : 44
         radius: compact ? 14 : 16
-        color: role === "primary" ? (mouseArea.pressed ? "#1e3f9e" : (mouseArea.containsMouse ? "#2853c5" : "#2349b0"))
-               : (role === "danger" ? (mouseArea.pressed ? "#5a2345" : (mouseArea.containsMouse ? "#74305a" : "#672a50"))
-                  : (role === "success" ? (mouseArea.pressed ? "#15632a" : (mouseArea.containsMouse ? "#22a345" : "#1e8a3b"))
-                     : (role === "ghost" ? (mouseArea.pressed ? "#101a3d" : (mouseArea.containsMouse ? "#15224d" : "#0c1636"))
+        color: role === "primary" ? (mouseArea.pressed ? appTheme.primaryButtonPressed : (mouseArea.containsMouse ? appTheme.primaryButtonHover : appTheme.primaryButton))
+               : (role === "danger" ? (mouseArea.pressed ? appTheme.dangerButtonPressed : (mouseArea.containsMouse ? appTheme.dangerButtonHover : appTheme.dangerButton))
+                  : (role === "success" ? (mouseArea.pressed ? appTheme.successButtonPressed : (mouseArea.containsMouse ? appTheme.successButtonHover : appTheme.successButton))
+                     : (role === "ghost" ? (mouseArea.pressed ? appTheme.ghostButtonPressed : (mouseArea.containsMouse ? appTheme.ghostButtonHover : appTheme.ghostButton))
                         : (mouseArea.pressed ? window.buttonPressed : (mouseArea.containsMouse ? window.buttonHover : window.buttonBase)))))
         border.width: 1
-        border.color: role === "primary" ? "#65d9ff"
-            : (role === "danger" ? "#ff83b1"
-               : (role === "success" ? "#44d671"
-                  : (role === "ghost" ? (mouseArea.containsMouse ? "#5f8fdc" : "#2f4f88") : Qt.lighter(accent, 1.12))))
+        border.color: role === "primary" ? appTheme.primaryButton
+            : (role === "danger" ? appTheme.dangerButton
+               : (role === "success" ? appTheme.successButton
+                  : (role === "ghost" ? appTheme.fieldBorder : Qt.lighter(accent, 1.04))))
         scale: mouseArea.pressed ? 0.985 : 1.0
         Behavior on color { ColorAnimation { duration: 110 } }
         MouseArea { id: mouseArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: neonButton.clicked() }
-        Text { id: buttonLabel; anchors.centerIn: parent; color: neonButton.role === "success" ? "#000000" : (neonButton.role === "ghost" ? "#d7e6ff" : window.buttonText); font.pixelSize: compact ? 13 : 14; font.bold: true }
+        Text { id: buttonLabel; anchors.centerIn: parent; color: neonButton.role === "primary" ? appTheme.primaryButtonText : (neonButton.role === "success" ? appTheme.successButtonText : (neonButton.role === "ghost" ? appTheme.ghostButtonText : window.buttonText)); font.pixelSize: compact ? 13 : 14; font.bold: true }
     }
 
     component LabelField: ColumnLayout {
@@ -2768,15 +2837,18 @@ ApplicationWindow {
         spacing: 6
         Text { text: labelField.label; color: window.textSecondary; font.pixelSize: 12; font.bold: true }
         Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 46; radius: 18; color: "#09102a"; border.width: 1; border.color: input.activeFocus ? "#58e7ff" : "#31458f"
+            Layout.fillWidth: true; Layout.preferredHeight: 46; radius: 18; color: appTheme.fieldBg; border.width: 1; border.color: input.activeFocus ? appTheme.fieldFocus : appTheme.fieldBorder
             TextField { id: input; anchors.fill: parent; anchors.margins: 4; anchors.leftMargin: 12; text: labelField.value; color: window.textPrimary; font.pixelSize: 14; background: null; selectByMouse: true; onTextEdited: labelField.edited(text) }
         }
     }
 
     component ThemedVScrollBar: ScrollBar {
-        id: themedScrollBar; width: 0; policy: ScrollBar.AlwaysOff; visible: false
-        contentItem: Rectangle { implicitWidth: 8; radius: 4; color: themedScrollBar.pressed ? "#7df1ff" : (themedScrollBar.hovered ? "#63d8ff" : "#50beff") }
-        background: Rectangle { radius: 6; color: "#0b1235"; opacity: 0.5 }
+        id: themedScrollBar
+        width: 0
+        policy: ScrollBar.AlwaysOff
+        visible: false
+        contentItem: Rectangle { implicitWidth: 8; radius: 4; color: themedScrollBar.pressed ? appTheme.buttonHover : (themedScrollBar.hovered ? appTheme.scrollbarHandle : appTheme.textMuted) }
+        background: Rectangle { radius: 6; color: appTheme.insetSurface; opacity: 0.5 }
     }
 
     component NetworkScanButton: Rectangle {
@@ -2786,14 +2858,12 @@ ApplicationWindow {
         width: 50
         height: 50
         radius: 25
-        color: active ? "#16386e" : "#10183d"
+        color: active ? appTheme.primaryButton : appTheme.ghostButton
         border.width: 1
-        border.color: active ? "#67efff" : "#355099"
+        border.color: active ? appTheme.primaryButton : appTheme.fieldBorder
         antialiasing: true
 
         Behavior on color { ColorAnimation { duration: 180 } }
-
-     
 
         Item {
             anchors.centerIn: parent
@@ -2827,10 +2897,3 @@ ApplicationWindow {
         }
     }
 }
-
-
-
-
-
-
-

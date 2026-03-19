@@ -19,7 +19,8 @@ data class AppSettings(
     val pcPort: Int,
     val localPort: Int,
     val autoScreenshotSync: Boolean,
-    val receiveTreeUri: String?
+    val receiveTreeUri: String?,
+    val themePreference: String
 )
 
 class AppSettingsRepository(private val context: Context) {
@@ -31,6 +32,7 @@ class AppSettingsRepository(private val context: Context) {
         val LOCAL_PORT = intPreferencesKey("local_port")
         val AUTO_SS = booleanPreferencesKey("auto_ss")
         val RECEIVE_TREE = stringPreferencesKey("receive_tree")
+        val THEME_PREFERENCE = stringPreferencesKey("theme_preference")
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -41,7 +43,8 @@ class AppSettingsRepository(private val context: Context) {
             pcPort = p[Keys.PC_PORT] ?: AppConstants.DEFAULT_PORT,
             localPort = p[Keys.LOCAL_PORT] ?: p[Keys.PC_PORT] ?: AppConstants.DEFAULT_PORT,
             autoScreenshotSync = p[Keys.AUTO_SS] ?: false,
-            receiveTreeUri = p[Keys.RECEIVE_TREE]
+            receiveTreeUri = p[Keys.RECEIVE_TREE],
+            themePreference = p[Keys.THEME_PREFERENCE] ?: "system"
         )
     }
 
@@ -77,5 +80,9 @@ class AppSettingsRepository(private val context: Context) {
         context.dataStore.edit {
             if (uri == null) it.remove(Keys.RECEIVE_TREE) else it[Keys.RECEIVE_TREE] = uri
         }
+    }
+
+    suspend fun setThemePreference(theme: String) {
+        context.dataStore.edit { it[Keys.THEME_PREFERENCE] = theme }
     }
 }

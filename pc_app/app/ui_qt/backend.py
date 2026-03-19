@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import queue
 import secrets
 import socket
 import threading
@@ -82,6 +81,8 @@ class HyperDropBackend(QObject):
     outgoingTransferRequestChanged = Signal()
     receiveSessionChanged = Signal()
     sendSelectionChanged = Signal()
+    themePreferenceChanged = Signal()
+    effectiveThemeChanged = Signal()
 
     _eventSignal = Signal(str)
     _devicesSignal = Signal(list)
@@ -150,6 +151,10 @@ class HyperDropBackend(QObject):
         self._receive_session_last_bytes: int = 0
         self._send_selection_items: list[SendSelectionItem] = []
         self._pending_send_selection_restore: list[SendSelectionItem] = []
+        self._theme_preference = self._normalize_theme_preference(self.config_obj.theme_preference)
+        if self.config_obj.theme_preference != self._theme_preference:
+            self.config_obj.theme_preference = self._theme_preference
+            save_config(self.config_obj)
 
         # Progress bar state
         self._transferring = False
@@ -160,6 +165,7 @@ class HyperDropBackend(QObject):
         self._eventSignal.connect(self._append_event)
         self._devicesSignal.connect(self._replace_devices)
         self._incomingTransferSignal.connect(self._show_incoming_transfer)
+        self._connect_system_theme_notifications()
 
         self._start_discovery()
         if self.config_obj.auto_start_server:
@@ -296,22 +302,6 @@ class HyperDropBackend(QObject):
             self._push_event("Connection settings saved")
         return True
 
-    @Property(str, notify=aliasChanged)
-    def alias(self) -> str:
-        return self._alias
-
-    @Property(int, notify=quickSaveModeChanged)
-    def quickSaveMode(self) -> int:
-        return self._quick_save_mode
-
-    @Property(list, notify=historyChanged)
-    def history(self) -> list:
-        return self._history
-
-    @Property(list, notify=favoritesChanged)
-    def favorites(self) -> list:
-        return self._favorites
-
     @staticmethod
     def _format_bytes(size: int) -> str:
         if size >= 1024 * 1024 * 1024:
@@ -336,6 +326,70 @@ class HyperDropBackend(QObject):
         except Exception:
             return 0
         return 0
+
+    @staticmethod
+    def _normalize_theme_preference(theme: str) -> str:
+        value = str(theme).strip().lower()
+        if value in {"light", "dark", "system"}:
+            return value
+        return "system"
+
+    def _connect_system_theme_notifications(self) -> None:
+        try:
+            from PySide6.QtGui import QGuiApplication
+        except Exception:
+            return
+        app = QGuiApplication.instance()
+        if app is None:
+            return
+        try:
+            app.styleHints().colorSchemeChanged.connect(self._on_system_color_scheme_changed)
+        except Exception:
+            pass
+
+    def _on_system_color_scheme_changed(self, *_args: Any) -> None:
+        if self._theme_preference == "system":
+            self.effectiveThemeChanged.emit()
+
+    @Property(str, notify=aliasChanged)
+    def alias(self) -> str:
+        return self._alias
+
+    @Property(int, notify=quickSaveModeChanged)
+    def quickSaveMode(self) -> int:
+        return self._quick_save_mode
+
+    @Property(list, notify=historyChanged)
+    def history(self) -> list:
+        return self._history
+
+    @Property(list, notify=favoritesChanged)
+    def favorites(self) -> list:
+        return self._favorites
+
+    @Property(str, notify=themePreferenceChanged)
+    def themePreference(self) -> str:
+        return self._theme_preference
+
+    @Property(str, notify=effectiveThemeChanged)
+    def effectiveTheme(self) -> str:
+        if self._theme_preference == "system":
+            from PySide6.QtGui import QGuiApplication
+            from PySide6.QtCore import Qt
+            scheme = QGuiApplication.styleHints().colorScheme()
+            return "dark" if scheme == Qt.ColorScheme.Dark else "light"
+        return self._theme_preference
+
+    @Slot(str)
+    def setThemePreference(self, theme: str) -> None:
+        normalized = self._normalize_theme_preference(theme)
+        if normalized == self._theme_preference:
+            return
+        self._theme_preference = normalized
+        self.config_obj.theme_preference = normalized
+        save_config(self.config_obj)
+        self.themePreferenceChanged.emit()
+        self.effectiveThemeChanged.emit()
 
     def _serialize_send_selection_item(self, item: SendSelectionItem) -> dict[str, Any]:
         return {
@@ -560,8 +614,8 @@ class HyperDropBackend(QObject):
     @Property(str, notify=outgoingTransferRequestChanged)
     def outgoingTransferRequestMessage(self) -> str:
         if self._outgoing_request_rejected:
-            return "Receiver Reject the Request"
-        return "Waiting for Response.."
+            return "Receiver rejected the request"
+        return "Waiting for response..."
 
     @Property(str, notify=outgoingTransferRequestChanged)
     def outgoingTransferRequestActionLabel(self) -> str:

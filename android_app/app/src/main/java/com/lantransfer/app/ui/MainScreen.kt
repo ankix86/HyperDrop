@@ -73,6 +73,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -175,7 +176,7 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                 bottomBar = {
                     NavigationBar(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp).clip(RoundedCornerShape(24.dp)),
-                        containerColor = Color(0xFF0A1137).copy(alpha = 0.96f),
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
                         tonalElevation = 0.dp
                     ) {
                         tabs.forEachIndexed { index, tab ->
@@ -191,12 +192,15 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                                         Image(
                                             painter = painterResource(tab.iconRes),
                                             contentDescription = tab.title,
-                                            modifier = Modifier.size(22.dp).alpha(if (tabSelected) 1f else 0.7f)
+                                            modifier = Modifier.size(22.dp).alpha(if (tabSelected) 1f else 0.7f),
+                                            colorFilter = ColorFilter.tint(
+                                                if (tabSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         )
                                         if (tab.title == "Receive" && (incomingTransfer != null || receiveSession != null)) {
                                             Box(
                                                 Modifier.size(8.dp)
-                                                    .background(Color(0xFFFF6B9D), CircleShape)
+                                                    .background(MaterialTheme.colorScheme.tertiary, CircleShape)
                                                     .align(Alignment.TopEnd)
                                                     .offset(x = 4.dp, y = (-4).dp)
                                             )
@@ -205,11 +209,11 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                                 },
                                 label = { Text(tab.title, fontWeight = if (tabSelected) FontWeight.SemiBold else FontWeight.Medium) },
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = Color(0xFF8DF6FF),
-                                    selectedTextColor = Color(0xFFEAF2FF),
-                                    unselectedIconColor = Color(0xFF8B95CC),
-                                    unselectedTextColor = Color(0xFF8B95CC),
-                                    indicatorColor = Color(0x3347DFFF)
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                                 )
                             )
                         }
@@ -278,6 +282,8 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                                         ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     )
                                 },
+                                themePref = settings.themePreference,
+                                onThemeChanged = vm::setThemePreference,
                             )
                         }
                     }
@@ -309,6 +315,8 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
 
 @Composable
 private fun AnimatedBackground(content: @Composable () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val darkTheme = (scheme.background.red + scheme.background.green + scheme.background.blue) < 1.5f
     val phase by rememberInfiniteTransition(label = "bg").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -327,23 +335,31 @@ private fun AnimatedBackground(content: @Composable () -> Unit) {
             val h = size.height
             drawRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF070B1D), Color(0xFF0A1140), Color(0xFF09112B))
+                    colors = listOf(
+                        if (darkTheme) scheme.background else scheme.surface,
+                        if (darkTheme) scheme.surface else scheme.background,
+                        if (darkTheme) scheme.surfaceVariant else scheme.surfaceVariant.copy(alpha = 0.82f)
+                    )
                 )
             )
             drawRect(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0x4D7A54FF), Color(0x1A7A54FF), Color(0x0006071C)),
+                    colors = listOf(
+                        scheme.primary.copy(alpha = if (darkTheme) 0.30f else 0.10f),
+                        scheme.primary.copy(alpha = if (darkTheme) 0.10f else 0.04f),
+                        Color.Transparent,
+                    ),
                     center = androidx.compose.ui.geometry.Offset(w * (0.2f + 0.4f * phase), h * 0.2f),
                     radius = w
                 )
             )
             drawCircle(
-                Color(0x187A54FF),
+                scheme.primary.copy(alpha = if (darkTheme) 0.12f else 0.05f),
                 w * 0.22f,
                 androidx.compose.ui.geometry.Offset(w * (0.08f + 0.04f * phase), h * (0.74f - 0.05f * phaseB))
             )
             drawCircle(
-                Color(0x145EB4FF),
+                scheme.tertiary.copy(alpha = if (darkTheme) 0.10f else 0.05f),
                 w * 0.18f,
                 androidx.compose.ui.geometry.Offset(w * (0.92f - 0.05f * phaseB), h * (0.14f + 0.06f * phase))
             )
@@ -360,17 +376,21 @@ private fun AnimatedBackground(content: @Composable () -> Unit) {
                     sizePx = spec.size,
                     rotation = rotation,
                     tint = when (spec.kind) {
-                        BackgroundGlyphKind.Triangle -> Color(0x9979AAFF)
-                        BackgroundGlyphKind.Diamond -> Color(0x997BAEFF)
-                        BackgroundGlyphKind.Circle -> Color(0x8876A8FF)
-                        BackgroundGlyphKind.Cross -> Color(0x888D9DFF)
+                        BackgroundGlyphKind.Triangle -> scheme.primary.copy(alpha = if (darkTheme) 0.46f else 0.24f)
+                        BackgroundGlyphKind.Diamond -> scheme.secondary.copy(alpha = if (darkTheme) 0.42f else 0.22f)
+                        BackgroundGlyphKind.Circle -> scheme.tertiary.copy(alpha = if (darkTheme) 0.34f else 0.18f)
+                        BackgroundGlyphKind.Cross -> scheme.outlineVariant.copy(alpha = if (darkTheme) 0.58f else 0.32f)
                     }
                 )
             }
 
             drawRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0x18050B24), Color.Transparent, Color(0x1D050B24))
+                    colors = listOf(
+                        if (darkTheme) Color.Black.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.08f),
+                        Color.Transparent,
+                        if (darkTheme) Color.Black.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.10f)
+                    )
                 )
             )
         }
@@ -489,13 +509,13 @@ private fun ReceiveTab(
                                 .size(128.dp)
                                 .scale(pulse)
                                 .clip(CircleShape)
-                                .border(4.dp, Color(0xFF58E7FF), CircleShape)
+                                .border(4.dp, MaterialTheme.colorScheme.primary, CircleShape)
                         )
                         Box(
                             modifier = Modifier
                                 .size(78.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF58E7FF))
+                                .background(MaterialTheme.colorScheme.primary)
                         )
                     }
                     Spacer(Modifier.height(8.dp))
@@ -508,7 +528,7 @@ private fun ReceiveTab(
                                 text = deviceName,
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -522,7 +542,8 @@ private fun ReceiveTab(
                                 Image(
                                     painter = painterResource(R.drawable.ic_edit_line),
                                     contentDescription = "Edit device name",
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(16.dp),
+                                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text("Edit")
@@ -575,11 +596,14 @@ private fun ReceiveTab(
             ) {
                 ShellCard(modifier = Modifier.fillMaxWidth(0.9f)) {
                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                        Text("Online", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Online", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         Switch(
                             checked = isServiceRunning,
                             onCheckedChange = { if (it) onStartService() else onStopService() },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF1E8A3B))
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                            )
                         )
                     }
                 }
@@ -617,14 +641,14 @@ private fun SendTab(
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             ShellCard {
-                Text("Selection", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Selection", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(6.dp))
-                Text("Files: ${selection.size}", color = Color(0xFFEAF2FF))
-                Text("Size: ${formatBytes(totalSize)}", color = Color(0xFF8BA4D4))
+                Text("Files: ${selection.size}", color = MaterialTheme.colorScheme.onSurface)
+                Text("Size: ${formatBytes(totalSize)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 Card(
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF101A43)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -633,16 +657,16 @@ private fun SendTab(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         if (selection.isEmpty()) {
-                            SelectionItemGlyph(compact = false, tint = Color(0xFF72DFFF))
+                            SelectionItemGlyph(compact = false, tint = MaterialTheme.colorScheme.primary)
                             Text(
                                 "No items selected yet",
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
                                 "Use Add or Media to build your collection, then open Edit to manage every item.",
-                                color = Color(0xFF8BA4D4),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
@@ -666,7 +690,7 @@ private fun SendTab(
                             }
                             Text(
                                 "Previewing your current collection. Tap Edit to review names, remove items, or clear everything.",
-                                color = Color(0xFF8BA4D4),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
@@ -691,8 +715,8 @@ private fun SendTab(
             ShellCard {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                     Column {
-                        Text("Nearby devices", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text(if (discoveredPeers.isEmpty()) "Looking for devices on your network" else "Found ${discoveredPeers.size} device(s)", color = Color(0xFF8BA4D4))
+                        Text("Nearby devices", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(if (discoveredPeers.isEmpty()) "Looking for devices on your network" else "Found ${discoveredPeers.size} device(s)", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -700,7 +724,7 @@ private fun SendTab(
                     ) {
                         Text(
                             text = if (hasPeers) "${discoveredPeers.size} online" else "Searching",
-                            color = if (hasPeers) Color(0xFF6EE6FF) else Color(0xFF8BA4D4),
+                            color = if (hasPeers) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.SemiBold
                         )
                         NearbyStatusGlyph(
@@ -711,13 +735,13 @@ private fun SendTab(
                 }
                 Spacer(Modifier.height(10.dp))
                 if (discoveredPeers.isEmpty()) {
-                    Text("No devices found yet", color = Color(0xFF8BA4D4))
+                    Text("No devices found yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         discoveredPeers.forEach { peer ->
                             Row(
-                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0x33223B93))
-                                    .border(1.dp, Color(0x332C7CFF), RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f), RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -728,7 +752,7 @@ private fun SendTab(
                                     Text(
                                         text = peer.deviceName,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFFEAF2FF),
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -772,7 +796,7 @@ private fun SelectionManagerDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF09112A)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Column(
@@ -786,10 +810,10 @@ private fun SelectionManagerDialog(
                 ) {
                     TextButton(onClick = onDismiss) { Text("Back") }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Selection", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("Selection", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                         Text(
                             "${selection.size} file(s) - ${formatBytes(selection.sumOf { it.sizeBytes })}",
-                            color = Color(0xFF8BA4D4),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -807,13 +831,13 @@ private fun SelectionManagerDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            SelectionItemGlyph(compact = false, tint = Color(0xFF72DFFF))
+                            SelectionItemGlyph(compact = false, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.height(10.dp))
-                            Text("Your selection is empty", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("Your selection is empty", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 "Add files or media to rebuild the collection.",
-                                color = Color(0xFF8BA4D4),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -826,18 +850,18 @@ private fun SelectionManagerDialog(
                         items(selection, key = { it.uriString }) { item ->
                             Card(
                                 shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF111B44)),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    SelectionItemGlyph(compact = true, tint = Color(0xFF72DFFF))
+                                    SelectionItemGlyph(compact = true, tint = MaterialTheme.colorScheme.primary)
                                     Spacer(Modifier.width(10.dp))
                                     Column(Modifier.weight(1f)) {
-                                        Text(item.fileName, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text(formatBytes(item.sizeBytes), color = Color(0xFF8BA4D4), style = MaterialTheme.typography.bodySmall)
+                                        Text(item.fileName, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(formatBytes(item.sizeBytes), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                                     }
                                     TextButton(onClick = { onRemoveSelected(item.uriString) }) { Text("Remove") }
                                 }
@@ -859,15 +883,15 @@ private fun SelectionPreviewTile(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (overflowCount > 0) Color(0xFF1A2A57) else Color(0xFF13224B)
+            containerColor = if (overflowCount > 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant
         ),
         modifier = modifier.size(58.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (overflowCount > 0) {
-                Text("+$overflowCount", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("+$overflowCount", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
             } else {
-                SelectionItemGlyph(compact = true, tint = Color(0xFF72DFFF))
+                SelectionItemGlyph(compact = true, tint = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -888,14 +912,14 @@ private fun SelectionItemGlyph(
             modifier = Modifier
                 .size(cardSize)
                 .clip(RoundedCornerShape(if (compact) 6.dp else 8.dp))
-                .background(Color(0xFF172750))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .border(1.dp, tint, RoundedCornerShape(if (compact) 6.dp else 8.dp))
         )
         Box(
             modifier = Modifier
                 .size(foldSize)
                 .offset(x = if (compact) 7.dp else 10.dp, y = if (compact) (-7).dp else (-10).dp)
-                .background(Color(0xFF0F1D42))
+                .background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, tint, RoundedCornerShape(2.dp))
         )
     }
@@ -916,7 +940,10 @@ private fun NearbyStatusGlyph(
             modifier = Modifier
                 .size(17.dp)
                 .rotate(rotation)
-                .alpha(if (online) 1f else 0.72f)
+                .alpha(if (online) 1f else 0.72f),
+            colorFilter = ColorFilter.tint(
+                if (online) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         )
     }
 }
@@ -935,11 +962,11 @@ private fun ReceiveStatusTab(
             session.statusTitle,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             "Save to folder: ${session.targetLabel}",
-            color = Color(0xFF9AB1EA),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -947,7 +974,7 @@ private fun ReceiveStatusTab(
 
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF0B1335)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier.fillMaxWidth().weight(1f)
         ) {
             if (session.files.isEmpty()) {
@@ -956,9 +983,9 @@ private fun ReceiveStatusTab(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No files in this session yet.", color = Color(0xFFC8D8FF))
+                        Text("No files in this session yet.", color = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.height(4.dp))
-                        Text("Files will appear here when transfer starts.", color = Color(0xFF8FA3DC), style = MaterialTheme.typography.bodySmall)
+                        Text("Files will appear here when transfer starts.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             } else {
@@ -969,7 +996,7 @@ private fun ReceiveStatusTab(
                     items(session.files, key = { it.relativePath }) { file ->
                         Card(
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2447)),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -979,13 +1006,13 @@ private fun ReceiveStatusTab(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         "${file.fileName} (${formatBytes(file.sizeBytes)})",
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     val statusText = if (file.done) "Done" else "${formatBytes(file.receivedBytes)} / ${formatBytes(file.sizeBytes)}"
-                                    Text(statusText, color = if (file.done) Color(0xFF7FD1FF) else Color(0xFFBFCFF5), style = MaterialTheme.typography.bodySmall)
+                                    Text(statusText, color = if (file.done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                                 }
                                 if (file.done && !file.openUri.isNullOrBlank()) {
                                     FilledTonalButton(onClick = { onOpenReceivedFile(file.openUri) }) {
@@ -1001,7 +1028,7 @@ private fun ReceiveStatusTab(
 
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF111A2F)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -1012,27 +1039,27 @@ private fun ReceiveStatusTab(
                     session.statusTitle,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 LinearProgressIndicator(
                     progress = { session.ratio },
                     modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(8.dp)),
-                    color = Color(0xFFA7CCFF),
-                    trackColor = Color(0xFF354462),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surface,
                     strokeCap = StrokeCap.Round
                 )
-                Text("Files: ${session.completedFiles}/${session.totalFiles}", color = Color(0xFFD9E6FF), style = MaterialTheme.typography.bodyMedium)
-                Text("Size: ${formatBytes(session.receivedBytes)} / ${formatBytes(session.totalBytes)}", color = Color(0xFFD9E6FF), style = MaterialTheme.typography.bodyMedium)
+                Text("Files: ${session.completedFiles}/${session.totalFiles}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                Text("Size: ${formatBytes(session.receivedBytes)} / ${formatBytes(session.totalBytes)}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     Button(
                         onClick = onDone,
                         enabled = !session.active,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF44D671),
-                            contentColor = Color(0xFF08122E),
-                            disabledContainerColor = Color(0xFF22603A),
-                            disabledContentColor = Color(0xFF9EC6AE)
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f)
                         )
                     ) {
                         Text("Done")
@@ -1054,6 +1081,8 @@ private fun SettingsTab(
     onRestartService: () -> Unit,
     onPickReceivePath: () -> Unit,
     onOpenInfo: () -> Unit,
+    themePref: String,
+    onThemeChanged: (String) -> Unit,
 ) {
     var portText by rememberSaveable(currentPort) { mutableStateOf(currentPort.toString()) }
     val parsedPort = portText.toIntOrNull()
@@ -1086,7 +1115,7 @@ private fun SettingsTab(
                             "Setting",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         FilledTonalButton(onClick = onOpenInfo, modifier = Modifier.fillMaxWidth()) {
                             Text("GitHub")
@@ -1102,7 +1131,7 @@ private fun SettingsTab(
                             "Setting",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         FilledTonalButton(onClick = onOpenInfo) { Text("GitHub") }
                     }
@@ -1117,7 +1146,7 @@ private fun SettingsTab(
                 if (portWarning != null) {
                     Text(
                         portWarning,
-                        color = Color(0xFFFFBF47),
+                        color = MaterialTheme.colorScheme.tertiary,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -1139,7 +1168,7 @@ private fun SettingsTab(
                 )
                 Text(
                     portHelper,
-                    color = if (portError != null) Color(0xFFFF8DB5) else Color(0xFFB6C5F8),
+                    color = if (portError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
                 FilledTonalButton(
@@ -1164,6 +1193,33 @@ private fun SettingsTab(
             }
         }
         item {
+            SettingsSectionCard(
+                title = "Visuals",
+                description = "Choose the display theme for the application.",
+            ) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("system" to "System", "light" to "Light", "dark" to "Dark").forEach { (value, label) ->
+                            val selected = themePref == value
+                            Button(
+                                onClick = { onThemeChanged(value) },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                    contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                contentPadding = PaddingValues(0.dp)
+                            ) { Text(label) }
+                        }
+                    }
+                }
+            }
+        }
+        item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1181,13 +1237,13 @@ private fun SettingsTab(
                 Text(
                     "Version: 1.0.0",
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFFEAF2FF)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "\u00A9 2026 RayZDev",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color(0xFFB6C5F8)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -1210,12 +1266,12 @@ private fun SettingsSectionCard(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = description,
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFB6C5F8),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
             content()
@@ -1232,7 +1288,7 @@ private fun SettingsValueCard(
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF10152F)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         BoxWithConstraints(
@@ -1244,8 +1300,8 @@ private fun SettingsValueCard(
             if (compact) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(label, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                        Text(value, color = Color(0xFFEAF2FF), style = MaterialTheme.typography.bodyMedium)
+                        Text(label, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     }
                     FilledTonalButton(onClick = onAction, modifier = Modifier.fillMaxWidth()) {
                         Text(actionLabel)
@@ -1261,8 +1317,8 @@ private fun SettingsValueCard(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(label, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                        Text(value, color = Color(0xFFEAF2FF), style = MaterialTheme.typography.bodyMedium)
+                        Text(label, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     }
                     FilledTonalButton(onClick = onAction) {
                         Text(actionLabel)
@@ -1282,7 +1338,7 @@ private fun ServerControlCard(
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF10152F)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         BoxWithConstraints(
@@ -1296,12 +1352,12 @@ private fun ServerControlCard(
             } else {
                 "Offline until you start the server."
             }
-            val statusColor = if (isServiceRunning) Color(0xFF98F0BF) else Color(0xFFB6C5F8)
+            val statusColor = if (isServiceRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
 
             if (compact) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Server", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Text("Server", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                         Text(statusText, color = statusColor, style = MaterialTheme.typography.bodySmall)
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1314,8 +1370,8 @@ private fun ServerControlCard(
                             onClick = { if (isServiceRunning) onStopService() else onStartService() },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isServiceRunning) Color(0xFF7D3158) else Color(0xFF44D671),
-                                contentColor = if (isServiceRunning) Color.White else Color(0xFF08122E)
+                                containerColor = if (isServiceRunning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                                contentColor = if (isServiceRunning) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
                             Text(if (isServiceRunning) "Stop" else "Start")
@@ -1332,7 +1388,7 @@ private fun ServerControlCard(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text("Server", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                        Text("Server", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                         Text(statusText, color = statusColor, style = MaterialTheme.typography.bodySmall)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1342,8 +1398,8 @@ private fun ServerControlCard(
                         Button(
                             onClick = { if (isServiceRunning) onStopService() else onStartService() },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isServiceRunning) Color(0xFF7D3158) else Color(0xFF44D671),
-                                contentColor = if (isServiceRunning) Color.White else Color(0xFF08122E)
+                                containerColor = if (isServiceRunning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                                contentColor = if (isServiceRunning) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
                             Text(if (isServiceRunning) "Stop" else "Start")
@@ -1358,9 +1414,9 @@ private fun ServerControlCard(
 @Composable
 private fun NoticeCard(title: String, text: String) {
     ShellCard {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(6.dp))
-        Text(text, color = Color(0xFF8DF6FF))
+        Text(text, color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -1372,7 +1428,7 @@ private fun ShellCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
     ) {
         Column(modifier = Modifier.padding(14.dp)) { content() }
     }
@@ -1392,21 +1448,21 @@ private fun IncomingTransferDialog(
     Dialog(onDismissRequest = { }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF09112A)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Incoming transfer", style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Incoming transfer", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                 Text(
                     if (state.senderClosed) "Sender closed the session before you responded."
                     else "${state.senderName} wants to send files to this device.",
-                    color = Color(0xFFEAF2FF)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (!state.senderClosed) {
                     ShellCard {
-                        Text("Save to", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Save to", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.height(6.dp))
-                        Text(state.receiveTargetLabel, color = Color(0xFFEAF2FF))
+                        Text(state.receiveTargetLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(10.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             FilledTonalButton(onClick = onPickFolder, modifier = Modifier.weight(1f)) { Text("Choose folder") }
@@ -1414,10 +1470,10 @@ private fun IncomingTransferDialog(
                         }
                     }
                 }
-                Text("${state.items.count { !it.isDirectory }} file(s) incoming", style = MaterialTheme.typography.titleSmall, color = Color(0xFF8DF6FF), fontWeight = FontWeight.SemiBold)
+                Text("${state.items.count { !it.isDirectory }} file(s) incoming", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(state.items, key = { it.relativePath }) { item ->
-                        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF111B44)), modifier = Modifier.fillMaxWidth()) {
+                        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     if (!item.isDirectory && !state.senderClosed) {
@@ -1425,16 +1481,16 @@ private fun IncomingTransferDialog(
                                         Spacer(Modifier.width(4.dp))
                                     }
                                     Column(Modifier.weight(1f)) {
-                                        Text(item.fileName, color = if (item.selected || item.isDirectory) Color.White else Color(0xFF7C87B8), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(item.fileName, color = if (item.selected || item.isDirectory) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         Text(
                                             if (item.isDirectory) item.relativePath else "${item.relativePath} • ${formatBytes(item.sizeBytes)}",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = Color(0xFF8BA4D4),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
-                                    if (item.isDirectory) Text("Folder", style = MaterialTheme.typography.bodySmall, color = Color(0xFF8DF6FF))
+                                    if (item.isDirectory) Text("Folder", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                                 }
                                 if (!state.senderClosed && !item.isDirectory && item.selected) {
                                     OutlinedTextField(value = item.proposedName, onValueChange = { onRename(item.relativePath, it) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Save as") })
@@ -1447,20 +1503,20 @@ private fun IncomingTransferDialog(
                     Button(
                         onClick = onAcknowledgeClosed,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8FB6FF), contentColor = Color(0xFF0C1A3B))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
                     ) { Text("Okay") }
                 } else {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = onDecline,
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6F2948), contentColor = Color.White)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)
                         ) { Text("Decline") }
                         Button(
                             onClick = onAccept,
                             enabled = state.canAccept,
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8FB6FF), contentColor = Color(0xFF0C1A3B))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
                         ) { Text("Accept") }
                     }
                 }
@@ -1475,34 +1531,34 @@ private fun TransferProgressCard(progress: MainViewModel.TransferProgress) {
     Card(
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Active transfer", style = MaterialTheme.typography.titleSmall, color = Color(0xFF8DF6FF), fontWeight = FontWeight.Bold)
-                    Text(progress.fileName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFFEAF2FF), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("Active transfer", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(progress.fileName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Spacer(Modifier.width(8.dp))
                 Box(
-                    modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0xFF103148))
-                        .border(1.dp, Color(0xFF1E7FA2), RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 10.dp)
+                    modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
-                    Text("${(progress.ratio * 100).toInt()}%", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF58E7FF))
+                    Text("${(progress.ratio * 100).toInt()}%", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             }
             LinearProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(8.dp)),
-                color = Color(0xFF58E7FF),
-                trackColor = Color(0xFF14245B),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 strokeCap = StrokeCap.Round
             )
-            Text("${formatBytes(progress.sent)} / ${formatBytes(progress.total)}", style = MaterialTheme.typography.bodySmall, color = Color(0xFF8BA4D4))
+            Text("${formatBytes(progress.sent)} / ${formatBytes(progress.total)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(
                 onClick = { MainViewModel.cancelTransfer() },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7D3158), contentColor = Color.White)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)
             ) { Text("Cancel Transfer") }
         }
     }
@@ -1523,7 +1579,7 @@ private fun SenderRequestDialog(
     ) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF09112A)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier.fillMaxWidth().padding(18.dp)
         ) {
             Column(
@@ -1535,7 +1591,7 @@ private fun SenderRequestDialog(
                     title = state.senderName,
                     platform = "Android",
                 )
-                Text("v", color = Color(0xFFEAF2FF), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text("v", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 SenderRequestDeviceCard(
                     title = state.receiverName,
                     platform = "Receiver",
@@ -1543,7 +1599,7 @@ private fun SenderRequestDialog(
                 Spacer(Modifier.height(14.dp))
                 Text(
                     state.message,
-                    color = Color(0xFFEAF2FF),
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -1551,8 +1607,8 @@ private fun SenderRequestDialog(
                     onClick = onAction,
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (state.waiting) Color(0xFF8FB6FF) else Color(0xFF5A6AA6),
-                        contentColor = Color(0xFF0C1A3B)
+                        containerColor = if (state.waiting) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text(state.actionLabel)
@@ -1569,7 +1625,7 @@ private fun SenderRequestDeviceCard(
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF3B4762)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1577,15 +1633,15 @@ private fun SenderRequestDeviceCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(38.dp).clip(CircleShape).background(Color(0xFF8FB6FF)),
+                modifier = Modifier.size(38.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
             ) {
-                Text(platform.take(1), color = Color(0xFF08122E), fontWeight = FontWeight.Bold)
+                Text(platform.take(1), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(platform, color = Color(0xFFD4E0FF), style = MaterialTheme.typography.bodySmall)
+                Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(platform, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
