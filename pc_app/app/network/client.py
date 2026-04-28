@@ -4,6 +4,7 @@ import asyncio
 import base64
 import logging
 import secrets
+import socket as _socket
 from typing import Callable
 
 from app.core.models import AppConfig, TransferTask
@@ -16,8 +17,34 @@ from app.transfer.sender import TransferSender
 logger = logging.getLogger(__name__)
 
 
-class TransferDeclinedError(RuntimeError):
-    """Raised when the remote receiver explicitly declines the transfer."""
+_SOCKET_BUFFER_SIZE = 4 * 1024 * 1024  # 4 MB send/receive buffer
+_WRITE_BUFFER_HIGH = 4 * 1024 * 1024  # asyncio write-buffer high-water mark
+_WRITE_BUFFER_LOW = 1 * 1024 * 1024   # asyncio write-buffer low-water mark
+
+
+def _tune_socket(writer: asyncio.StreamWriter) -> None:
+    """Apply throughput-oriented socket options to a freshly opened connection.
+
+    * TCP_NODELAY  – disable Nagle's algorithm so small ACK messages are sent
+                     immediately rather than being delayed up to 200 ms waiting
+                     to be coalesced with outgoing data.
+    * SO_SNDBUF / SO_RCVBUF – enlarge the OS-level socket buffers so the kernel
+                     can keep the TCP pipeline full without blocking asyncio.
+    * write_buffer_limits – raise the asyncio StreamWriter high-water mark so
+                     that drain() does not suspend after every individual frame
+                     during the chunked transfer loop.
+    """
+    sock = writer.get_extra_info("socket")
+    if sock is not None:
+        sock.setsockopt(_socket.IPPROTO_TCP, _socket.TCP_NODELAY, 1)
+        try:
+            sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_SNDBUF, _SOCKET_BUFFER_SIZE)
+            sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_RCVBUF, _SOCKET_BUFFER_SIZE)
+        except OSError:
+            pass  # Some OSes enforce a system-wide cap; best-effort only.
+    transport = writer.transport
+    if hasattr(transport, "set_write_buffer_limits"):
+        transport.set_write_buffer_limits(high=_WRITE_BUFFER_HIGH, low=_WRITE_BUFFER_LOW)
 
 
 def _filter_transfer_payload(manifest, source_map: dict, accepted_paths: set[str]) -> tuple:
@@ -61,6 +88,7 @@ class LanClient:
     async def send_task(self, task: TransferTask) -> None:
         self._cancelled = False
         reader, writer = await asyncio.open_connection(task.target_ip, task.target_port)
+        _tune_socket(writer)
         session = Session(FramedTransport(reader, writer))
         self._active_session = session
         try:

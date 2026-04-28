@@ -21,6 +21,8 @@ import com.lantransfer.app.util.str
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -82,6 +84,7 @@ class TransferEngine(private val context: Context) {
 
         withContext(Dispatchers.IO) {
             val socket = Socket(settings.pcHost, settings.pcPort)
+            tuneSocket(socket)
             activeClientSocket = socket
             try {
                 socket.use { clientSocket ->
@@ -206,6 +209,7 @@ class TransferEngine(private val context: Context) {
             try {
                 while (isRunning() && !isCancelled) {
                     val socket = serverSocket.accept()
+                    tuneSocket(socket)
                     try {
                         handleIncomingSocket(socket, settingsProvider(), onEvent, incomingTransferHandler)
                     } catch (e: Exception) {
@@ -640,6 +644,19 @@ class TransferEngine(private val context: Context) {
         )
     }
 
+    /**
+     * Tune a socket for high-throughput LAN transfers:
+     * - TCP_NODELAY disables Nagle's algorithm so small ACK messages are sent
+     *   immediately without being delayed up to 200 ms.
+     * - Large SO_SNDBUF / SO_RCVBUF keep the TCP pipeline full across the
+     *   OS boundary so the JVM is not blocked waiting for the kernel.
+     */
+    private fun tuneSocket(socket: Socket) {
+        socket.tcpNoDelay = true
+        runCatching { socket.sendBufferSize = 4 * 1024 * 1024 }
+        runCatching { socket.receiveBufferSize = 4 * 1024 * 1024 }
+    }
+
     private suspend fun sendFile(
         transport: FramedTransport,
         sessionKey: ByteArray,
@@ -650,62 +667,121 @@ class TransferEngine(private val context: Context) {
         onProgress: ((Long) -> Unit)? = null
     ) {
         val input = context.contentResolver.openInputStream(uri) ?: error("Cannot open source")
-        input.use { stream ->
-            val buf = ByteArray(AppConstants.CHUNK_SIZE)
-            var idx = 0
-            var sent = 0L
-            while (true) {
-                if (isCancelled) {
-                    throw java.util.concurrent.CancellationException("Transfer cancelled by user")
+
+        // Sliding-window pipeline: PIPELINE_WINDOW chunks may be in-flight
+        // simultaneously.  The sender queues chunks into the BufferedOutputStream
+        // while the ACK reader coroutine consumes arriving acknowledgements and
+        // releases window slots.  This eliminates the stop-and-wait RTT penalty
+        // without changing the existing protocol.
+        val windowSem = Semaphore(AppConstants.PIPELINE_WINDOW)
+        // chunkSizes maps chunk index → plaintext bytes for progress accounting.
+        val chunkSizes = mutableMapOf<Int, Int>()
+        var progressBytes = 0L
+        var totalChunks = 0
+        // Signals that the sender loop has finished and all frames are flushed.
+        val senderDone = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        coroutineScope {
+            val ackJob = launch(Dispatchers.IO) {
+                // Receive ACKs until all chunks have been acknowledged and the
+                // sender is done.  If all ACKs arrived before the sender
+                // finished (fast-ACK / small-file case), senderDone will be
+                // true here and we break immediately.
+                while (true) {
+                    val ack = transport.receive()
+                    if (ack.type == "cancel") {
+                        throw java.util.concurrent.CancellationException("Transfer cancelled by PC")
+                    }
+                    require(ack.type == "chunk_ack") { "Expected chunk_ack but got ${ack.type}" }
+                    val ackedIdx = ack.payload.asObject().str("chunk_index").toInt()
+                    val bytes = synchronized(chunkSizes) { chunkSizes.remove(ackedIdx) ?: 0 }
+                    progressBytes += bytes
+                    onProgress?.invoke(progressBytes)
+                    windowSem.release()
+                    // Exit when the sender is done and all in-flight chunks are ACKed.
+                    if (senderDone.get() && synchronized(chunkSizes) { chunkSizes.isEmpty() }) {
+                        break
+                    }
                 }
-                val read = stream.read(buf)
-                if (read <= 0) break
-                val plain = if (read == buf.size) buf else buf.copyOf(read)
-                val aad = "$transferId:$relativePath:$idx".encodeToByteArray()
-                val encrypted = crypto.encryptChunk(sessionKey, transferSalt, idx, aad, plain)
-                transport.send(
-                    ProtocolMessage(
-                        AppConstants.PROTOCOL_VERSION,
-                        "file_chunk",
-                        JsonObject(
-                            mapOf(
-                                "transfer_id" to JsonPrimitive(transferId),
-                                "relative_path" to JsonPrimitive(relativePath),
-                                "chunk_index" to JsonPrimitive(idx),
-                                "offset" to JsonPrimitive(sent),
-                                "ciphertext_b64" to JsonPrimitive(Base64.encodeToString(encrypted, Base64.NO_WRAP)),
-                                "eof" to JsonPrimitive(false)
+            }
+
+            input.use { stream ->
+                val buf = ByteArray(AppConstants.CHUNK_SIZE)
+                var idx = 0
+                var writeOffset = 0L
+
+                while (true) {
+                    if (isCancelled) {
+                        throw java.util.concurrent.CancellationException("Transfer cancelled by user")
+                    }
+                    val read = withContext(Dispatchers.IO) { stream.read(buf) }
+                    if (read <= 0) break
+
+                    val plain = if (read == buf.size) buf.copyOf() else buf.copyOf(read)
+                    val aad = "$transferId:$relativePath:$idx".encodeToByteArray()
+                    val encrypted = crypto.encryptChunk(sessionKey, transferSalt, idx, aad, plain)
+
+                    windowSem.acquire()
+                    synchronized(chunkSizes) { chunkSizes[idx] = plain.size }
+
+                    // Queue without flushing; flush after a full window so all
+                    // window chunks share a single OS write, reducing syscall overhead.
+                    transport.sendBuffered(
+                        ProtocolMessage(
+                            AppConstants.PROTOCOL_VERSION,
+                            "file_chunk",
+                            JsonObject(
+                                mapOf(
+                                    "transfer_id" to JsonPrimitive(transferId),
+                                    "relative_path" to JsonPrimitive(relativePath),
+                                    "chunk_index" to JsonPrimitive(idx),
+                                    "offset" to JsonPrimitive(writeOffset),
+                                    "ciphertext_b64" to JsonPrimitive(Base64.encodeToString(encrypted, Base64.NO_WRAP)),
+                                    "eof" to JsonPrimitive(false)
+                                )
                             )
                         )
                     )
-                )
-                val ack = transport.receive()
-                if (ack.type == "cancel") {
-                    throw java.util.concurrent.CancellationException("Transfer cancelled by PC")
+                    if ((idx + 1) % AppConstants.PIPELINE_WINDOW == 0) {
+                        transport.flush()
+                    }
+
+                    writeOffset += read
+                    idx += 1
+                    totalChunks = idx
                 }
-                require(ack.type == "chunk_ack") { "Expected chunk_ack" }
-                sent += read
-                idx += 1
-                onProgress?.invoke(sent)
+
+                // Flush any remaining buffered frames before the ACK job can finish.
+                transport.flush()
             }
 
-            transport.send(
-                ProtocolMessage(
-                    AppConstants.PROTOCOL_VERSION,
-                    "file_chunk",
-                    JsonObject(
-                        mapOf(
-                            "transfer_id" to JsonPrimitive(transferId),
-                            "relative_path" to JsonPrimitive(relativePath),
-                            "chunk_index" to JsonPrimitive(idx),
-                            "offset" to JsonPrimitive(sent),
-                            "ciphertext_b64" to JsonPrimitive(""),
-                            "eof" to JsonPrimitive(true)
-                        )
+            // Mark sender as finished.  If all ACKs were already processed
+            // (chunkSizes is empty now) the ackJob may be blocked waiting for
+            // a recv that will never arrive; cancel it.
+            senderDone.set(true)
+            if (!ackJob.isCompleted && synchronized(chunkSizes) { chunkSizes.isEmpty() }) {
+                ackJob.cancel()
+            }
+            ackJob.join()
+        }
+
+        // Send the EOF sentinel (no per-chunk ACK expected for this marker).
+        transport.send(
+            ProtocolMessage(
+                AppConstants.PROTOCOL_VERSION,
+                "file_chunk",
+                JsonObject(
+                    mapOf(
+                        "transfer_id" to JsonPrimitive(transferId),
+                        "relative_path" to JsonPrimitive(relativePath),
+                        "chunk_index" to JsonPrimitive(totalChunks),
+                        "offset" to JsonPrimitive(progressBytes),
+                        "ciphertext_b64" to JsonPrimitive(""),
+                        "eof" to JsonPrimitive(true)
                     )
                 )
             )
-        }
+        )
     }
 
     private fun entryToJson(e: ManifestEntry): JsonObject {

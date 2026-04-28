@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import logging
+import socket as _socket
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Awaitable, Callable
@@ -11,6 +12,7 @@ from typing import Awaitable, Callable
 from app.core.models import AppConfig
 from app.crypto.key_exchange import KeyPair
 from app.crypto.session_keys import derive_session_key
+from app.network.client import _SOCKET_BUFFER_SIZE, _WRITE_BUFFER_HIGH, _WRITE_BUFFER_LOW
 from app.network.protocol import ProtocolMessage
 from app.network.transport import FramedTransport, Session
 from app.transfer.receiver import TransferReceiver
@@ -93,6 +95,17 @@ class LanServer:
             self._status_callback(text)
 
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        sock = writer.get_extra_info("socket")
+        if sock is not None:
+            sock.setsockopt(_socket.IPPROTO_TCP, _socket.TCP_NODELAY, 1)
+            try:
+                sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_SNDBUF, _SOCKET_BUFFER_SIZE)
+                sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_RCVBUF, _SOCKET_BUFFER_SIZE)
+            except OSError:
+                pass
+        transport = writer.transport
+        if hasattr(transport, "set_write_buffer_limits"):
+            transport.set_write_buffer_limits(high=_WRITE_BUFFER_HIGH, low=_WRITE_BUFFER_LOW)
         session = Session(FramedTransport(reader, writer))
         self._active_sessions.add(session)
         contexts: dict[str, ReceivedTransferContext] = {}
